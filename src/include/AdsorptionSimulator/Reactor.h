@@ -1,0 +1,62 @@
+#pragma once
+
+#include "PorousMedia.h"
+#include "Wall.h"
+#include "Fluid.h"
+#include "BoundaryCondition.h"
+#include "DispersionModel.h"
+#include "Cycle.h"
+
+#include <vector>
+#include <unordered_map>
+#include <memory>
+
+struct PorousMedia;
+struct IDispersionModel;
+struct DispersionModelConstant;
+struct Step;
+
+struct InitialCondition
+{
+	double T0 = 293.0;
+	double P0 = 101325.0;
+	double u0 = 0.0;
+	std::vector<double> yi0{};
+};
+
+struct Reactor
+{
+public:
+	Reactor(Fluid& fluid) : fluid(fluid) {}
+
+	void addLayer(const std::string& layerName);
+	void removeLayer(const std::string& layerName);
+	PorousMedia& getLayer(const std::string& layerName);
+
+	void updateLength();
+
+	void addIsothermModel(const std::string& component);
+	void removeIsothermModel(const std::string& component);
+
+	void resizeData();
+
+	void setDispersionModel(double dispersionCoefficient);
+
+	void initialise(); // Sets the initial conditions to all cell values
+
+	void updateBoundaryConditions(const Step& step);
+
+	void integrate(double dt);
+	
+	Wall wall{};
+	std::unique_ptr<IDispersionModel> dispersionModel = std::make_unique<DispersionModelConstant>(1e-5);
+
+private:
+	Fluid& fluid;
+	std::unordered_map<std::string, PorousMedia> layers{};
+	Inflow inflow{};
+	Outflow outflow{};
+	InitialCondition initialCondition{};
+	double length{};
+
+};

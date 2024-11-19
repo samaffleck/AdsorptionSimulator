@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+<<<<<<< HEAD
+=======
+
+# Visual Studio
+.vs
+
+#Build
+build
+
+>>>>>>> 9c8c1c4 (Initial Commit)
