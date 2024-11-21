@@ -63,8 +63,13 @@ public:
     void setIsothermModel(const std::string& component, const HenryIsothermParameters& ips);
     void setIsothermModel(const std::string& component, const LangmuirIsothermParameters& ips);
     void setIsothermModel(const std::string& component, const DualSiteLangmuirIsothermParameters& ips);
-    void setIsothermModel(const std::string& component, const ExtendedLangmuirIsothermParameters& ips);
+    void setIsothermModel(const std::string& component);
     
+    IsothermModel* getIsothermModel(const std::string& component);
+    IsothermModel* getIsothermModel(int index);
+
+    void updateIsotherms();
+
     void setMassTransferCoefficient(const std::string& component, double ki);
     
     void setHeatOfAdsorption(const std::string& component, double Hads);
@@ -104,8 +109,6 @@ private:
     double dx = L / numberOfCells;
 
 private:
-    IsothermModel* getIsothermModel(const std::string& component);
-
     void updateIsotherm();
     void updateSourceTerms();
 

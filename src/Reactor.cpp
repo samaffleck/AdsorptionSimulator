@@ -72,8 +72,24 @@ void Reactor::setDispersionModel(double dispersionCoefficient)
 
 void Reactor::initialise()
 {
+    for (auto& [layerName, layer] : layers)
+    {
+        for (int n = 0; n < layer.fluidData.P.size(); ++n)
+        {
+            layer.fluidData.P[n] = initialCondition.P0;
+            layer.fluidData.T[n] = initialCondition.T0;
+            layer.fluidData.u[n] = initialCondition.u0;
+            layer.fluidData.C[n] = initialCondition.P0 / (8.314 * initialCondition.T0);
 
-
+            for (int i = 0; i < layer.fluidData.yi.size(); ++i)
+            {
+                layer.fluidData.yi[i][n] = initialCondition.yi0[i];
+                layer.fluidData.Ci[i][n] = layer.fluidData.C[n] * initialCondition.yi0[i];
+            }
+        }
+        layer.updateIsotherms(); // Updates qi_sat for all components at each cell in the layer
+        layer.fluidData.qi = layer.fluidData.qi_sat;
+    }
 }
 
 void Reactor::updateBoundaryConditions(const Step& step)

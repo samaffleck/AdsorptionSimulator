@@ -43,16 +43,6 @@ void PorousMedia::setIsothermModel(const std::string& component, const LangmuirI
 	}
 }
 
-
-void PorousMedia::setIsothermModel(const std::string& component, const ExtendedLangmuirIsothermParameters& ips)
-{
-	IsothermModel* isothermModel = getIsothermModel(component);
-	if (isothermModel != nullptr)
-	{
-		//isothermModel->isotherm = createIsotherm(ips, isothermModels);
-	}
-}
-
 void PorousMedia::setMassTransferCoefficient(const std::string& component, double ki)
 {
 	IsothermModel* isothermModel = getIsothermModel(component);
@@ -151,6 +141,14 @@ void PorousMedia::setIsothermModel(const std::string& component, const DualSiteL
 	}
 }
 
+void PorousMedia::setIsothermModel(const std::string& component)
+{
+	IsothermModel* isothermModel = getIsothermModel(component);
+	if (isothermModel != nullptr)
+	{
+		isothermModel->isotherm = createIsotherm();
+	}
+}
 
 IsothermModel* PorousMedia::getIsothermModel(const std::string& component)
 {
@@ -167,37 +165,39 @@ IsothermModel* PorousMedia::getIsothermModel(const std::string& component)
 	return nullptr;
 }
 
-
-void PorousMedia::updateIsotherm()
+IsothermModel* PorousMedia::getIsothermModel(int index)
 {
-	for (int i = 1; i < fluidData.C.size() - 1; ++i) // Loop through all central cells
+	if (index < 0 || index > isothermModels.size() - 1)
 	{
-		std::vector<double> yis;
-		for (int j = 0; j < isothermModels.size(); ++j) // Number of components
-		{
-			yis.emplace_back(fluidData.yi[j][i]);
-		}
+		throw("Index out of range");
+		return nullptr;
+	}
+	return &isothermModels[index];
+}
 
-		for (int j = 0; j < isothermModels.size(); ++j) // Number of components
+void PorousMedia::updateIsotherms()
+{
+	for (int i = 0; i < fluidData.qi_sat.size(); ++i)
+	{
+		for (int n = 1; n < fluidData.qi_sat[i].size() - 1; ++n) // Loop through all central cells
 		{
-			isothermModels[j].isotherm->update(fluidData.qi_sat[j][i], fluidData.T[i], fluidData.P[i], fluidData.yi[j][i], yis);
+			isothermModels[i].isotherm->update(fluidData.qi_sat[i][n], fluidData.T[n], fluidData.P[n], fluidData.yi[i][n]);
 		}
 	}
 }
 
-
 void PorousMedia::updateSourceTerms()
 {
-	for (int i = 1; i < fluidData.C.size() - 1; ++i) // Loop through all central cells
+	for (int n = 1; n < fluidData.C.size() - 1; ++n) // Loop through all central cells
 	{
-		fluidData.Sm[i] = 0;
-		fluidData.Se[i] = 0;
-		for (int j = 0; j < isothermModels.size(); ++j) // Number of components
+		fluidData.Sm[n] = 0;
+		fluidData.Se[n] = 0;
+		for (int i = 0; i < isothermModels.size(); ++i) // Number of components
 		{
-			fluidData.Smi[j][i] = density * eb * isothermModels[j].ki * (fluidData.qi_sat[j][i] - fluidData.qi[j][i]);
-			fluidData.Sei[j][i] = fluidData.Smi[j][i] * isothermModels[j].Hads;
-			fluidData.Sm[i] += fluidData.Smi[j][i];
-			fluidData.Se[i] += fluidData.Sei[j][i];
+			fluidData.Smi[i][n] = density * eb * isothermModels[i].ki * (fluidData.qi_sat[i][n] - fluidData.qi[i][n]);
+			fluidData.Sei[i][n] = fluidData.Smi[i][n] * isothermModels[i].Hads;
+			fluidData.Sm[n] += fluidData.Smi[i][n];
+			fluidData.Se[n] += fluidData.Sei[i][n];
 		}
 	}
 }
@@ -241,13 +241,14 @@ void FluidData::resize(int sizeOfVectors, int numberOfComponents)
 	Pr.resize(sizeOfVectors);
 	Pr.setConstant(0.);
 
-	u.resize(sizeOfVectors - 1);			// Staggered grid is used for velocity, so 1 less cell is needed
+	// Staggered grid is used for velocity, so 1 less cell is needed
+	u.resize(sizeOfVectors - 1);
 	u.setConstant(0.);
-	massFlow.resize(sizeOfVectors - 1);	// Staggered grid is used for velocity, so 1 less cell is needed
+	massFlow.resize(sizeOfVectors - 1);
 	massFlow.setConstant(0.);
-	molarFlow.resize(sizeOfVectors - 1);	// Staggered grid is used for velocity, so 1 less cell is needed
+	molarFlow.resize(sizeOfVectors - 1);
 	molarFlow.setConstant(0.);
-	volumeFlow.resize(sizeOfVectors - 1);	// Staggered grid is used for velocity, so 1 less cell is needed
+	volumeFlow.resize(sizeOfVectors - 1);
 	volumeFlow.setConstant(0.);
 
 	// Component parameters

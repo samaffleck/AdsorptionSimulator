@@ -42,56 +42,51 @@ struct DualSiteLangmuirIsothermParameters
 // Namespace for isotherm functions
 namespace IsothermFunction 
 {
+    void Inert(double& qi);
     void Henry(double& qi, double T, double P, double yi, const HenryIsothermParameters& ips);
     void Langmuir(double& qi, double T, double P, double yi, const LangmuirIsothermParameters& ips);
     void DualSiteLangmuir(double& qi, double T, double P, double yi, const DualSiteLangmuirIsothermParameters& ips);
-    void ExtendedLangmuir(double& qi, double T, double P, double yi, const std::vector<double>& yis, const ExtendedLangmuirIsothermParameters& ip, const std::vector<ExtendedLangmuirIsothermParameters>& ips);
 }
 
-// Abstract isotherm interface
 struct IIsotherm 
 {
-    virtual void update(double& qi, double T, double P, double yi, const std::vector<double>& yis) = 0;
-    virtual ~IIsotherm() = default; // Virtual destructor
+    virtual void update(double& qi, double T, double P, double yi) = 0;
+    virtual ~IIsotherm() = default; 
 };
 
-// Concrete isotherm classes
+struct InertIsotherm : public IIsotherm
+{
+    void update(double& qi, double T, double P, double yi) override;
+};
+
 struct HenryIsotherm : public IIsotherm 
 {
-    HenryIsothermParameters isothermParams{};
+    HenryIsotherm(HenryIsothermParameters ips) : isothermParams(ips) {}
+    HenryIsothermParameters isothermParams;
 
-    void update(double& qi, double T, double P, double yi, const std::vector<double>& yis) override;
+    void update(double& qi, double T, double P, double yi) override;
 };
 
 struct LangmuirIsotherm : public IIsotherm 
 {
+    LangmuirIsotherm(LangmuirIsothermParameters ips) : isothermParams(ips) {}
     LangmuirIsothermParameters isothermParams{};
 
-    void update(double& qi, double T, double P, double yi, const std::vector<double>& yis) override;
-};
-
-struct ExtendedLangmuirIsotherm : public IIsotherm
-{
-    ExtendedLangmuirIsothermParameters isothermParams{};
-    std::vector<IsothermModel>& isothermModel;
-
-    ExtendedLangmuirIsotherm(ExtendedLangmuirIsothermParameters params, std::vector<IsothermModel>& model)
-        : isothermParams(params), isothermModel(model) {}
-
-    void update(double& qi, double T, double P, double yi, const std::vector<double>& yis) override;
+    void update(double& qi, double T, double P, double yi) override;
 };
 
 struct DualSiteLangmuirIsotherm : public IIsotherm 
 {
+    DualSiteLangmuirIsotherm(DualSiteLangmuirIsothermParameters ips) : isothermParams(ips) {}
     DualSiteLangmuirIsothermParameters isothermParams{};
 
-    void update(double& qi, double T, double P, double yi, const std::vector<double>& yis) override;
+    void update(double& qi, double T, double P, double yi) override;
 };
 
 // Factory functions
+std::unique_ptr<IIsotherm> createIsotherm();
 std::unique_ptr<IIsotherm> createIsotherm(const HenryIsothermParameters& params);
 std::unique_ptr<IIsotherm> createIsotherm(const LangmuirIsothermParameters& params);
-std::unique_ptr<IIsotherm> createIsotherm(const ExtendedLangmuirIsothermParameters& params);
 std::unique_ptr<IIsotherm> createIsotherm(const DualSiteLangmuirIsothermParameters& params);
 
 // IsothermModel struct
@@ -100,7 +95,7 @@ struct IsothermModel
     explicit IsothermModel(std::string component) : component(std::move(component)) {}
 
     std::string component;
-    std::unique_ptr<IIsotherm> isotherm = std::make_unique<LangmuirIsotherm>(); // Default isotherm model
-    double ki = 1.0;  // Mass transfer coefficient [s]
-    double Hads = 10000;  // Heat of adsorption [J/mol]
+    std::unique_ptr<IIsotherm> isotherm = std::make_unique<InertIsotherm>(); // Default isotherm model is inert
+    double ki = 1.0;            // Mass transfer coefficient [s]
+    double Hads = 10000;        // Heat of adsorption [J/mol]
 };
