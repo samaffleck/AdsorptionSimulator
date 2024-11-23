@@ -1,12 +1,25 @@
 #pragma once
 
+#include "AdsorptionSimulator/PorousMedia.h"
+
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <cmath> 
 
 // Forward declare
 struct IsothermModel;
+
+// Isotherm types
+enum class IsothermType
+{
+    INERT, 
+    HENRY,
+    LANGMUIR,
+    DUALSITELANGMUIR
+};
+
 
 // Parameter structs
 struct HenryIsothermParameters 
@@ -92,10 +105,17 @@ std::unique_ptr<IIsotherm> createIsotherm(const DualSiteLangmuirIsothermParamete
 // IsothermModel struct
 struct IsothermModel 
 {
-    explicit IsothermModel(std::string component) : component(std::move(component)) {}
+public:
+    void addComponent(std::string component);
+    void removeComponent(const std::string& component);
+    void updateIsotherm(FluidData& fluidData);
+    IIsotherm* getIsotherm(const std::string& component);
+    
+    std::unique_ptr<IIsotherm> isotherm = std::make_unique<InertIsotherm>();    // Default isotherm model is inert
+    IsothermType type = IsothermType::INERT;
 
-    std::string component;
-    std::unique_ptr<IIsotherm> isotherm = std::make_unique<InertIsotherm>(); // Default isotherm model is inert
-    double ki = 1.0;            // Mass transfer coefficient [s]
-    double Hads = 10000;        // Heat of adsorption [J/mol]
+private:
+    std::vector<std::string> components{};
+    std::unordered_map<std::string, double> ki{};                               // Mass transfer coefficient [s]
+    std::unordered_map<std::string, double> Hads{};                             // Heat of adsorption [J/mol]
 };

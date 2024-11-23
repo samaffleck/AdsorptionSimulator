@@ -7,6 +7,7 @@
 #include <Eigen/Dense>
 
 #include <string>
+#include <unordered_map>
 
 
 struct Reactor;
@@ -15,12 +16,12 @@ struct Reactor;
 struct FluidData
 {
     // Component parameters
-    std::vector<Eigen::VectorXd> yi{};          // Mole fraction of component i [mol/mol]
-    std::vector<Eigen::VectorXd> Ci{};          // Molar concentration of component i [mol/m3]
-    std::vector<Eigen::VectorXd> qi{};          // Solid phase concentration [mol/kg]
-    std::vector<Eigen::VectorXd> qi_sat{};      // Equilibrium solid phase concentration [mol/kg]
-    std::vector<Eigen::VectorXd> Smi{};         // mass source [mol of component i/(m3 of reactor - s)]
-    std::vector<Eigen::VectorXd> Sei{};         // energy source [J/(m3-s)]
+    std::unordered_map<std::string, Eigen::VectorXd> yi{};          // Mole fraction of component i [mol/mol]
+    std::unordered_map<std::string, Eigen::VectorXd> Ci{};          // Molar concentration of component i [mol/m3]
+    std::unordered_map<std::string, Eigen::VectorXd> qi{};          // Solid phase concentration [mol/kg]
+    std::unordered_map<std::string, Eigen::VectorXd> qi_sat{};      // Equilibrium solid phase concentration [mol/kg]
+    std::unordered_map<std::string, Eigen::VectorXd> Smi{};         // mass source [mol of component i/(m3 of reactor - s)]
+    std::unordered_map<std::string, Eigen::VectorXd> Sei{};         // energy source [J/(m3-s)]
     
     // Overall fluid parameters
     Eigen::VectorXd rho{};                      // Gas density [kg / m3]
@@ -47,7 +48,7 @@ struct FluidData
     Eigen::VectorXd molarFlow{};                // Molar flow rate [mol/s] -> Staggered grid
     Eigen::VectorXd volumeFlow{};               // volumetric flow rate [m3/s] -> Staggered grid
 
-    void resize(int sizeOfVectors, int numberOfComponents);
+    void resize(int sizeOfVectors, const Fluid& fluid);
 
 };
 
@@ -65,8 +66,7 @@ public:
     void setIsothermModel(const std::string& component, const DualSiteLangmuirIsothermParameters& ips);
     void setIsothermModel(const std::string& component);
     
-    IsothermModel* getIsothermModel(const std::string& component);
-    IsothermModel* getIsothermModel(int index);
+    IIsotherm* getIsothermModel(const std::string& component);
 
     void updateIsotherms();
 
@@ -103,13 +103,12 @@ public:
 private:
     Fluid& fluid;
     Reactor& reactor;
-    std::vector<IsothermModel> isothermModels = {};  // Stores an isotherm model for each component
+    std::unordered_map<IsothermType, IsothermModel> isothermModels = {};  // Stores an isotherm model for each isotherm type
     int numberOfCells = 20;
     double L = 1.0;                             // Length of porous media domain [m]
     double dx = L / numberOfCells;
 
 private:
-    void updateIsotherm();
     void updateSourceTerms();
 
 };

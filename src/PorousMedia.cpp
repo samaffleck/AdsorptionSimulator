@@ -7,7 +7,7 @@
 
 void PorousMedia::addIsothermModel(const std::string& component)
 {
-	isothermModels.emplace_back(component);
+	isothermModels[IsothermType::INERT].addComponent(component);
 }
 
 
@@ -15,11 +15,7 @@ void PorousMedia::removeIsothermModel(const std::string& component)
 {
 	for (auto itt = isothermModels.begin(); itt != isothermModels.end(); itt++)
 	{
-		if (itt->component == component)
-		{
-			isothermModels.erase(itt);
-			break;
-		}
+		itt->second.removeComponent(component);
 	}
 }
 
@@ -143,45 +139,34 @@ void PorousMedia::setIsothermModel(const std::string& component, const DualSiteL
 
 void PorousMedia::setIsothermModel(const std::string& component)
 {
-	IsothermModel* isothermModel = getIsothermModel(component);
-	if (isothermModel != nullptr)
+	IIsotherm* isotherm= getIsothermModel(component);
+	if (isotherm != nullptr)
 	{
-		isothermModel->isotherm = createIsotherm();
+		isotherm = createIsotherm();
 	}
 }
 
-IsothermModel* PorousMedia::getIsothermModel(const std::string& component)
+IIsotherm* PorousMedia::getIsothermModel(const std::string& component)
 {
 	if (isothermModels.size() < 1) return nullptr;
 	
-	for (auto& isothermModel : isothermModels)
+	IIsotherm* model = nullptr;
+
+	for (auto& [type, isothermModel] : isothermModels)
 	{
-		if (isothermModel.component == component)
-		{
-			return &isothermModel;
-		}
+		model = isothermModel.getIsotherm(component);
 	}
 
-	return nullptr;
-}
-
-IsothermModel* PorousMedia::getIsothermModel(int index)
-{
-	if (index < 0 || index > isothermModels.size() - 1)
-	{
-		throw("Index out of range");
-		return nullptr;
-	}
-	return &isothermModels[index];
+	return model;
 }
 
 void PorousMedia::updateIsotherms()
 {
 	for (int i = 0; i < fluidData.qi_sat.size(); ++i)
 	{
-		for (int n = 1; n < fluidData.qi_sat[i].size() - 1; ++n) // Loop through all central cells
+		for (auto& [type, model] : isothermModels)
 		{
-			isothermModels[i].isotherm->update(fluidData.qi_sat[i][n], fluidData.T[n], fluidData.P[n], fluidData.yi[i][n]);
+			model.updateIsotherm(fluidData);
 		}
 	}
 }
@@ -202,7 +187,7 @@ void PorousMedia::updateSourceTerms()
 	}
 }
 
-void FluidData::resize(int sizeOfVectors, int numberOfComponents)
+void FluidData::resize(int sizeOfVectors, const Fluid& fluid)
 {
 	rho.resize(sizeOfVectors);
 	rho.setConstant(0.);
@@ -252,25 +237,30 @@ void FluidData::resize(int sizeOfVectors, int numberOfComponents)
 	volumeFlow.setConstant(0.);
 
 	// Component parameters
-	yi.resize(numberOfComponents);
-	Ci.resize(numberOfComponents);
-	qi.resize(numberOfComponents);
-	qi_sat.resize(numberOfComponents);
-	Smi.resize(numberOfComponents);
-	Sei.resize(numberOfComponents);
-	for (int i = 0; i < numberOfComponents; ++i)
+	yi.clear();
+	Ci.clear();
+	qi.clear();
+	qi_sat.clear();
+	Smi.clear();
+	Sei.clear();
+	for (auto& component : componentNames)
 	{
-		yi[i].resize(sizeOfVectors);
-		yi[i].setConstant(0.);
-		Ci[i].resize(sizeOfVectors);
-		Ci[i].setConstant(0.);
-		qi[i].resize(sizeOfVectors);
-		qi[i].setConstant(0.);
-		qi_sat[i].resize(sizeOfVectors);
-		qi_sat[i].setConstant(0.);
-		Smi[i].resize(sizeOfVectors);
-		Smi[i].setConstant(0.);
-		Sei[i].resize(sizeOfVectors);
-		Sei[i].setConstant(0.);
+		yi[component].resize(sizeOfVectors);
+		yi[component].setConstant(0.);
+
+		Ci[component].resize(sizeOfVectors);
+		Ci[component].setConstant(0.);
+
+		qi[component].resize(sizeOfVectors);
+		qi[component].setConstant(0.);
+
+		qi_sat[component].resize(sizeOfVectors);
+		qi_sat[component].setConstant(0.);
+
+		Smi[component].resize(sizeOfVectors);
+		Smi[component].setConstant(0.);
+
+		Sei[component].resize(sizeOfVectors);
+		Sei[component].setConstant(0.);
 	}
 }

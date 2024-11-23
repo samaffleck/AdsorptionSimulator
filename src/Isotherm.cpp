@@ -1,5 +1,8 @@
 #include "AdsorptionSimulator/Isotherm.h"
 
+#include <algorithm>
+#include <stdexcept>
+
 void IsothermFunction::Inert(double& qi)
 {
 	qi = 0;
@@ -59,5 +62,53 @@ std::unique_ptr<IIsotherm> createIsotherm(const LangmuirIsothermParameters& para
 std::unique_ptr<IIsotherm> createIsotherm(const DualSiteLangmuirIsothermParameters& params)
 {
 	return std::make_unique<DualSiteLangmuirIsotherm>(params);
+}
+
+void IsothermModel::addComponent(std::string component)
+{
+	if (std::find(components.begin(), components.end(), component) != components.end()) 
+	{
+		return;
+	}
+
+	components.push_back(std::move(component));
+	ki[components.back()] = 1.0;   
+	Hads[components.back()] = 1e5;
+}
+
+void IsothermModel::removeComponent(const std::string& component)
+{
+	auto it = std::find(components.begin(), components.end(), component);
+	if (it == components.end()) 
+	{
+		return;
+	}
+
+	components.erase(it);
+	ki.erase(component);
+	Hads.erase(component);
+}
+
+void IsothermModel::updateIsotherm(FluidData& fluidData)
+{
+	for (const auto& component : components)
+	{
+		for (int n = 1; n < fluidData.C.size() - 1; ++n) // Loop through central cells only
+		{
+			isotherm->update(fluidData.qi_sat[component][n], fluidData.T[n], fluidData.P[n], fluidData.yi[component][n]);
+		}
+	}
+}
+
+IIsotherm* IsothermModel::getIsotherm(const std::string& component)
+{
+	for (int i = 0; i < components.size(); ++i)
+	{
+		if (components[i] == component)
+		{
+			return isotherm.get();
+		}
+	}
+	return nullptr;
 }
 

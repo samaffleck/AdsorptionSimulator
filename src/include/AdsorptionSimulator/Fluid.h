@@ -24,7 +24,6 @@ public:
     void removeComponent(const std::string& componentName);
     int getNumberOfComponents() { return int(components.size()); }
 
-private:
     std::vector<std::string> components = {};
 
 private:

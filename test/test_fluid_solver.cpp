@@ -9,6 +9,8 @@ int main()
 
     system.addComponent("Oxygen");
     system.addComponent("Nitrogen");
+    system.addComponent("Water");
+    system.removeComponent("Water");
 
     system.getReactor().addLayer("AA");
     system.getReactor().addLayer("13X");
