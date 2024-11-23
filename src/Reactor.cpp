@@ -10,6 +10,8 @@ void Reactor::addLayer(const std::string& layerName)
         throw std::runtime_error("Layer with name '" + layerName + "' already exists.");
     }
     layers.try_emplace(layerName, PorousMedia(fluid, *this));
+
+    updateLength();
 }
 
 void Reactor::removeLayer(const std::string& layerName)
@@ -20,6 +22,8 @@ void Reactor::removeLayer(const std::string& layerName)
         throw std::runtime_error("Layer with name '" + layerName + "' does not exist.");
     }
     layers.erase(it);
+
+    updateLength();
 }
 
 PorousMedia& Reactor::getLayer(const std::string& layerName)
@@ -39,6 +43,20 @@ void Reactor::updateLength()
     {
         length += layer.getLayerLength(); 
     }
+}
+
+void Reactor::addComponent(const std::string& component)
+{
+    addIsothermModel(component);
+    initialCondition.addComponent(component);
+    resizeData();
+}
+
+void Reactor::removeComponent(const std::string& component)
+{
+    removeIsothermModel(component);
+    initialCondition.removeComponent(component);
+    resizeData();
 }
 
 void Reactor::addIsothermModel(const std::string& component)
@@ -81,10 +99,10 @@ void Reactor::initialise()
             layer.fluidData.u[n] = initialCondition.u0;
             layer.fluidData.C[n] = initialCondition.P0 / (8.314 * initialCondition.T0);
 
-            for (int i = 0; i < layer.fluidData.yi.size(); ++i)
+            for (const auto& component : fluid.components)
             {
-                layer.fluidData.yi[i][n] = initialCondition.yi0[i];
-                layer.fluidData.Ci[i][n] = layer.fluidData.C[n] * initialCondition.yi0[i];
+                layer.fluidData.yi[component][n] = initialCondition.yi0[component];
+                layer.fluidData.Ci[component][n] = layer.fluidData.C[n] * initialCondition.yi0[component];
             }
         }
         layer.updateIsotherms(); // Updates qi_sat for all components at each cell in the layer
@@ -104,5 +122,25 @@ void Reactor::integrate(double dt)
     {
         
 
+    }
+}
+
+void InitialCondition::addComponent(const std::string& component)
+{
+    auto itt = yi0.find(component);
+
+    if (itt == yi0.end()) // If it does not exist, add it
+    {
+        yi0[component] = 0.0;
+    }
+}
+
+void InitialCondition::removeComponent(const std::string& component)
+{
+    auto itt = yi0.find(component);
+    
+    if (itt != yi0.end()) 
+    {
+        yi0.erase(itt);
     }
 }

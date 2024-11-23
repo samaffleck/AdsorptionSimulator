@@ -3,15 +3,13 @@
 void AdsorptionSystem::addComponent(const std::string& component)
 {
 	fluid.addComponent(component);
-	reactor.addIsothermModel(component);
-	reactor.resizeData();
+	reactor.addComponent(component);
 }
 
 void AdsorptionSystem::removeComponent(const std::string& component)
 {
 	fluid.removeComponent(component);
-	reactor.removeIsothermModel(component);
-	reactor.resizeData();
+	reactor.removeComponent(component);
 }
 
 PorousMedia& AdsorptionSystem::getAdsorbent(const std::string& adsorbent)

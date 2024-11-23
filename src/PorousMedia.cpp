@@ -11,7 +11,6 @@ void PorousMedia::addIsothermModel(const std::string& component)
 	isothermModels[IsothermType::INERT].addComponent(component);
 }
 
-
 void PorousMedia::removeIsothermModel(const std::string& component)
 {
 	for (auto itt = isothermModels.begin(); itt != isothermModels.end(); itt++)
@@ -19,7 +18,6 @@ void PorousMedia::removeIsothermModel(const std::string& component)
 		itt->second.removeComponent(component);
 	}
 }
-
 
 void PorousMedia::setIsothermModel(const std::string& component, const HenryIsothermParameters& ips)
 {
@@ -33,7 +31,6 @@ void PorousMedia::setIsothermModel(const std::string& component, const HenryIsot
 	henryModel.addComponent(component);
 
 	henryModel.isotherm = std::make_unique<HenryIsotherm>(ips);
-	henryModel.type = IsothermType::HENRY;
 }
 
 void PorousMedia::setIsothermModel(const std::string& component, const LangmuirIsothermParameters& ips)
@@ -48,7 +45,6 @@ void PorousMedia::setIsothermModel(const std::string& component, const LangmuirI
 	langmuirModel.addComponent(component);
 
 	langmuirModel.isotherm = std::make_unique<LangmuirIsotherm>(ips);
-	langmuirModel.type = IsothermType::LANGMUIR;
 }
 
 void PorousMedia::setIsothermModel(const std::string& component, const DualSiteLangmuirIsothermParameters& ips)
@@ -63,7 +59,6 @@ void PorousMedia::setIsothermModel(const std::string& component, const DualSiteL
 	dualSiteLangmuirModel.addComponent(component);
 
 	dualSiteLangmuirModel.isotherm = std::make_unique<DualSiteLangmuirIsotherm>(ips);
-	dualSiteLangmuirModel.type = IsothermType::DUALSITELANGMUIR;
 }
 
 void PorousMedia::setIsothermModel(const std::string& component)
@@ -78,7 +73,6 @@ void PorousMedia::setIsothermModel(const std::string& component)
 	inertIsothermModel.addComponent(component);
 
 	inertIsothermModel.isotherm = std::make_unique<InertIsotherm>();
-	inertIsothermModel.type = IsothermType::INERT;
 }
 
 void PorousMedia::setMassTransferCoefficient(const std::string& component, double ki)
@@ -136,7 +130,7 @@ void PorousMedia::updateMoleFraction(double dt)
 
 	double alpha = et * dx / dt;
 
-	for (const auto& component : componentNames)
+	for (const auto& component : fluid.components)
 	{
 		Ae.setConstant(0.);
 		Aw.setConstant(0.);
@@ -233,7 +227,9 @@ void FluidData::resize(int sizeOfVectors, const Fluid& fluid)
 	qi_sat.clear();
 	Smi.clear();
 	Sei.clear();
-	for (const auto& component : componentNames)
+	ki.clear();
+	Hads.clear();
+	for (const auto& component : fluid.components)
 	{
 		yi[component].resize(sizeOfVectors);
 		yi[component].setConstant(0.);

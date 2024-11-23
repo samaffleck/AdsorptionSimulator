@@ -10,7 +10,7 @@ void Cycle::run()
     {
         std::cout << "Running cycle " << cycleNumber + 1 << " of " << numberOfCycles << std::endl;
 
-        for (auto& [stepName, step] : steps) 
+        for (const auto& [stepName, step] : steps) 
         {
             std::cout << "Executing step: " << stepName << std::endl;
 
@@ -50,11 +50,10 @@ void Cycle::addStep(const std::string& stepName)
 {
     if (steps.find(stepName) != steps.end()) 
     {
-        throw std::runtime_error("Step with name '" + stepName + "' already exists.");
+        return;
     }
 
-    steps.emplace(stepName, Step());
-    std::cout << "Step '" << stepName << "' added to the cycle." << std::endl;
+    steps.try_emplace(stepName);
 }
 
 void Cycle::removeStep(const std::string& stepName)
@@ -62,11 +61,10 @@ void Cycle::removeStep(const std::string& stepName)
     auto it = steps.find(stepName);
     if (it == steps.end()) 
     {
-        throw std::runtime_error("Step with name '" + stepName + "' does not exist.");
+        return;
     }
 
     steps.erase(it);
-    std::cout << "Step '" << stepName << "' removed from the cycle." << std::endl;
 }
 
 Step& Cycle::getStep(const std::string& stepName)

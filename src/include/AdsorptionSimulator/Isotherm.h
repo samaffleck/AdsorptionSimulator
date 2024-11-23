@@ -1,7 +1,5 @@
 #pragma once
 
-#include "AdsorptionSimulator/PorousMedia.h"
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -10,6 +8,8 @@
 
 // Forward declare
 struct IsothermModel;
+struct PorousMedia;
+struct FluidData;
 
 // Isotherm types
 enum class IsothermType
@@ -113,8 +113,8 @@ public:
     IIsotherm* getIsotherm(const std::string& component);
     
     std::unique_ptr<IIsotherm> isotherm = std::make_unique<InertIsotherm>();    // Default isotherm model is inert
-    IsothermType type = IsothermType::INERT;
-
+    
 private:
     std::vector<std::string> components{};
+
 };

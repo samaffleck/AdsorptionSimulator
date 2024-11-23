@@ -1,7 +1,9 @@
 #include "AdsorptionSimulator/Isotherm.h"
+#include "AdsorptionSimulator/PorousMedia.h"
 
 #include <algorithm>
 #include <stdexcept>
+#include <vector>
 
 void IsothermFunction::Inert(double& qi)
 {

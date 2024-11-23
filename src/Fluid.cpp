@@ -19,7 +19,7 @@ void Fluid::removeComponent(const std::string& componentName)
 
 bool Fluid::isComponentValid(const std::string& componentName)
 {
-	for (const auto& component : componentNames)
+	for (const auto& component : Components::componentNames)
 	{
 		if (component == componentName)
 		{

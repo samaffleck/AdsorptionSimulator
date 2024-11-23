@@ -21,7 +21,10 @@ struct InitialCondition
 	double T0 = 293.0;
 	double P0 = 101325.0;
 	double u0 = 0.0;
-	std::vector<double> yi0{};
+	std::unordered_map<std::string, double> yi0{};
+
+	void addComponent(const std::string& component);
+	void removeComponent(const std::string& component);
 };
 
 struct Reactor
@@ -33,12 +36,10 @@ public:
 	void removeLayer(const std::string& layerName);
 	PorousMedia& getLayer(const std::string& layerName);
 
+	void addComponent(const std::string& component);
+	void removeComponent(const std::string& component);
+
 	void updateLength();
-
-	void addIsothermModel(const std::string& component);
-	void removeIsothermModel(const std::string& component);
-
-	void resizeData();
 
 	void setDispersionModel(double dispersionCoefficient);
 
@@ -50,13 +51,18 @@ public:
 	
 	Wall wall{};
 	std::unique_ptr<IDispersionModel> dispersionModel = std::make_unique<DispersionModelConstant>(1e-5);
+	InitialCondition initialCondition{};
 
 private:
 	Fluid& fluid;
 	std::unordered_map<std::string, PorousMedia> layers{};
 	Inflow inflow{};
 	Outflow outflow{};
-	InitialCondition initialCondition{};
 	double length{};
+
+private:
+	void addIsothermModel(const std::string& component);
+	void removeIsothermModel(const std::string& component);
+	void resizeData();
 
 };

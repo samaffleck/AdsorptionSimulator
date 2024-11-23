@@ -11,7 +11,7 @@
 
 
 struct Reactor;
-
+struct IsothermModel;
 
 struct FluidData
 {
@@ -69,8 +69,6 @@ public:
     void setIsothermModel(const std::string& component, const DualSiteLangmuirIsothermParameters& ips);
     void setIsothermModel(const std::string& component);
     
-    //IIsotherm* getIsothermModel(const std::string& component);
-
     void updateIsotherms();
 
     void setMassTransferCoefficient(const std::string& component, double ki);

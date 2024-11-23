@@ -1,6 +1,7 @@
 #pragma once
 
-#include <vector>
+#include <unordered_map>
+#include <string>
 
 enum class BoundaryConditionLocation
 {
@@ -16,7 +17,7 @@ struct Inflow
 	double P_in = 101325.0;
 
 	double T_in = 293.0;
-	std::vector<double> y_in{};
+	std::unordered_map<std::string, double> y_in{};
 
 	BoundaryConditionLocation location = BoundaryConditionLocation::BOTTOM;
 };
