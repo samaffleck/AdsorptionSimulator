@@ -120,8 +120,8 @@ void Reactor::integrate(double dt)
 {
     for (auto& [layerName, layer] : layers) 
     {
-        
-
+        dispersionModel->update(layer);
+        layer.integrate(dt);
     }
 }
 

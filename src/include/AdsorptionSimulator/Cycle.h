@@ -20,7 +20,7 @@ struct Cycle
 	Cycle(Reactor& reactor) : reactor(reactor) {}
 
 	void run();
-	bool performChecks();
+	bool performChecks() const;
 
 	void addStep(const std::string& stepName);
 	void removeStep(const std::string& stepName);

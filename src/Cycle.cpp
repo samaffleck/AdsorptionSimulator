@@ -26,7 +26,7 @@ void Cycle::run()
     }
 }
 
-bool Cycle::performChecks()
+bool Cycle::performChecks() const
 {
     if (steps.empty()) 
     {

@@ -3,6 +3,8 @@
 #include "AdsorptionSimulator/ThomasAlgoritms.h"
 #include "AdsorptionSimulator/Fluid.h"
 
+#include "CoolProp.h"
+
 #include <memory>
 
 
@@ -115,10 +117,19 @@ void PorousMedia::resizeData()
 	fluidDataLastStep.resize(sizeOfVectors, fluid);
 }
 
-void PorousMedia::updateConstants()
+void PorousMedia::integrate(double dt)
 {
+	// Explicit equations
+	updateConstants();
+	updateFlowrates();
 	updateIsotherms();
 	updateSourceTerms();
+
+	// Implicit equations
+	updateMoleFraction(dt);
+	updateVelocity();
+
+	fluidDataLastStep = fluidData;
 }
 
 void PorousMedia::updateMoleFraction(double dt)
@@ -145,12 +156,47 @@ void PorousMedia::updateMoleFraction(double dt)
 			de = eb * 0.5 * (fluidData.Dl[n] + fluidData.Dl[n + 1]) / dx;
 			dw = eb * 0.5 * (fluidData.Dl[n] + fluidData.Dl[n - 1]) / dx;
 
-			Aw[n] = -dw - std::max(fluidData.u[n], 0.0);
-			Ae[n] = -de - std::max(-fluidData.u[n + 1], 0.0);
-			Ap[n] = alpha + std::max(fluidData.u[n + 1], 0.0) + std::max(-fluidData.u[n], 0.0) + de + dw;
+			Aw[n] = -dw - std::max(fluidData.u[n - 1], 0.0);
+			Ae[n] = -de - std::max(-fluidData.u[n], 0.0);
+			Ap[n] = alpha + std::max(fluidData.u[n], 0.0) + std::max(-fluidData.u[n - 1], 0.0) + de + dw;
 			X[n] = alpha * fluidDataLastStep.Ci[component][n] + density * eb * fluidData.Smi[component][n] * dx;
 
 			LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.Ci[component]);
+		}
+	}
+}
+
+void PorousMedia::updateVelocity()
+{
+	Eigen::VectorXd Ae(fluidData.u.size());
+	Eigen::VectorXd Aw(fluidData.u.size());
+	Eigen::VectorXd Ap(fluidData.u.size());
+	Eigen::VectorXd X(fluidData.u.size());
+
+	for (int n = 0; n < fluidData.u.size(); ++n)
+	{
+		//fluidData.u[n] = 
+	}
+}
+
+void PorousMedia::updateConstants()
+{
+	fluidData.Cp.setConstant(0.);
+	fluidData.k.setConstant(0.);
+	fluidData.rho.setConstant(0.);
+	fluidData.vis.setConstant(0.);
+	fluidData.Yt.setConstant(0.);
+
+	for (int n = 0; n < fluidData.C.size(); ++n)
+	{
+		for (const auto& component : fluid.components)
+		{
+			fluidData.yi[component][n] = fluidData.Ci[component][n] / fluidData.C[n];
+			fluidData.Cp[n] += fluidData.yi[component][n] * CoolProp::PropsSI("CPMOLAR", "P", fluidData.P[n], "T", fluidData.T[n], component);
+			fluidData.k[n] += fluidData.yi[component][n] * CoolProp::PropsSI("CONDUCTIVITY", "P", fluidData.P[n], "T", fluidData.T[n], component);
+			fluidData.rho[n] += fluidData.Ci[component][n] * CoolProp::Props1SI("molemass", component) * 1e-3;
+			fluidData.vis[n] += fluidData.yi[component][n] * CoolProp::PropsSI("V", "P", fluidData.P[n], "T", fluidData.T[n], component);
+			fluidData.Yt[n] += fluidData.yi[component][n];
 		}
 	}
 }
@@ -168,6 +214,18 @@ void PorousMedia::updateSourceTerms()
 	for (auto& [type, model] : isothermModels)
 	{
 		model.updateSourceTerms(fluidData);
+	}
+}
+
+void PorousMedia::updateFlowrates()
+{
+	double area = reactor.wall.getArea();
+
+	for (int n = 0; n < fluidData.u.size(); ++n)
+	{
+		fluidData.volumeFlow[n] = fluidData.u[n] * area;
+		fluidData.massFlow[n] = fluidData.volumeFlow[n] * fluidData.rho[n];
+		fluidData.molarFlow[n] = fluidData.volumeFlow[n] * fluidData.C[n];
 	}
 }
 

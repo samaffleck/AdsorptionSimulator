@@ -82,9 +82,7 @@ public:
 
     void resizeData();
 
-    void updateConstants();
-
-    void updateMoleFraction(double dt);
+    void integrate(double dt);
 
     double eb = 0.37;                   // Inter-particle bed voidage [m3/m3]
     double et = 0.65;                   // Intra-particle voidage [m3/m3]
@@ -109,6 +107,10 @@ private:
     double dx = L / numberOfCells;
 
 private:
+    void updateConstants();
     void updateSourceTerms();
+    void updateFlowrates();
 
+    void updateMoleFraction(double dt);
+    void updateVelocity();
 };
