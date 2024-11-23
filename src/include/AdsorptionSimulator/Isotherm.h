@@ -109,6 +109,7 @@ public:
     void addComponent(std::string component);
     void removeComponent(const std::string& component);
     void updateIsotherm(FluidData& fluidData);
+    void updateSourceTerms(FluidData& fluidData);
     IIsotherm* getIsotherm(const std::string& component);
     
     std::unique_ptr<IIsotherm> isotherm = std::make_unique<InertIsotherm>();    // Default isotherm model is inert
@@ -116,6 +117,4 @@ public:
 
 private:
     std::vector<std::string> components{};
-    std::unordered_map<std::string, double> ki{};                               // Mass transfer coefficient [s]
-    std::unordered_map<std::string, double> Hads{};                             // Heat of adsorption [J/mol]
 };

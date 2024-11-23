@@ -1,6 +1,7 @@
 #include "AdsorptionSimulator/PorousMedia.h"
 #include "AdsorptionSimulator/Isotherm.h"
 #include "AdsorptionSimulator/ThomasAlgoritms.h"
+#include "AdsorptionSimulator/Fluid.h"
 
 #include <memory>
 
@@ -22,39 +23,72 @@ void PorousMedia::removeIsothermModel(const std::string& component)
 
 void PorousMedia::setIsothermModel(const std::string& component, const HenryIsothermParameters& ips)
 {
-	IsothermModel* isothermModel = getIsothermModel(component);
-	if (isothermModel != nullptr)
+	// Remove the component from all existing isotherm models
+	for (auto& [type, model] : isothermModels) 
 	{
-		isothermModel->isotherm = createIsotherm(ips);
+		model.removeComponent(component);
 	}
-}
 
+	IsothermModel& henryModel = isothermModels[IsothermType::HENRY];
+	henryModel.addComponent(component);
+
+	henryModel.isotherm = std::make_unique<HenryIsotherm>(ips);
+	henryModel.type = IsothermType::HENRY;
+}
 
 void PorousMedia::setIsothermModel(const std::string& component, const LangmuirIsothermParameters& ips)
 {
-	IsothermModel* isothermModel = getIsothermModel(component);
-	if (isothermModel != nullptr)
-	{
-		isothermModel->isotherm = createIsotherm(ips);
+	// Remove the component from all existing isotherm models
+	for (auto& [type, model] : isothermModels) 
+	{	
+		model.removeComponent(component);
 	}
+	
+	IsothermModel& langmuirModel = isothermModels[IsothermType::LANGMUIR];
+	langmuirModel.addComponent(component);
+
+	langmuirModel.isotherm = std::make_unique<LangmuirIsotherm>(ips);
+	langmuirModel.type = IsothermType::LANGMUIR;
+}
+
+void PorousMedia::setIsothermModel(const std::string& component, const DualSiteLangmuirIsothermParameters& ips)
+{
+	// Remove the component from all existing isotherm models
+	for (auto& [type, model] : isothermModels) 
+	{
+		model.removeComponent(component);
+	}
+
+	IsothermModel& dualSiteLangmuirModel = isothermModels[IsothermType::DUALSITELANGMUIR];
+	dualSiteLangmuirModel.addComponent(component);
+
+	dualSiteLangmuirModel.isotherm = std::make_unique<DualSiteLangmuirIsotherm>(ips);
+	dualSiteLangmuirModel.type = IsothermType::DUALSITELANGMUIR;
+}
+
+void PorousMedia::setIsothermModel(const std::string& component)
+{
+	// Remove the component from all existing isotherm models
+	for (auto& [type, model] : isothermModels)
+	{
+		model.removeComponent(component);
+	}
+
+	IsothermModel& inertIsothermModel = isothermModels[IsothermType::INERT];
+	inertIsothermModel.addComponent(component);
+
+	inertIsothermModel.isotherm = std::make_unique<InertIsotherm>();
+	inertIsothermModel.type = IsothermType::INERT;
 }
 
 void PorousMedia::setMassTransferCoefficient(const std::string& component, double ki)
 {
-	IsothermModel* isothermModel = getIsothermModel(component);
-	if (isothermModel != nullptr)
-	{
-		isothermModel->ki = ki;
-	}
+	fluidData.ki[component].setConstant(ki);
 }
 
 void PorousMedia::setHeatOfAdsorption(const std::string& component, double Hads)
 {
-	IsothermModel* isothermModel = getIsothermModel(component);
-	if (isothermModel != nullptr)
-	{
-		isothermModel->Hads = Hads;
-	}
+	fluidData.Hads[component].setConstant(Hads);
 }
 
 void PorousMedia::setLayerLength(double length) 
@@ -83,13 +117,13 @@ int PorousMedia::getNumberOfCells() const
 void PorousMedia::resizeData()
 {
 	int sizeOfVectors = numberOfCells + 2; // 2 ghost cells are used either size of the domain
-	fluidData.resize(sizeOfVectors, fluid.getNumberOfComponents());
-	fluidDataLastStep.resize(sizeOfVectors, fluid.getNumberOfComponents());
+	fluidData.resize(sizeOfVectors, fluid);
+	fluidDataLastStep.resize(sizeOfVectors, fluid);
 }
 
 void PorousMedia::updateConstants()
 {
-	updateIsotherm();
+	updateIsotherms();
 	updateSourceTerms();
 }
 
@@ -102,7 +136,7 @@ void PorousMedia::updateMoleFraction(double dt)
 
 	double alpha = et * dx / dt;
 
-	for (int i = 0; i < fluidData.Ci.size(); ++i)
+	for (const auto& component : componentNames)
 	{
 		Ae.setConstant(0.);
 		Aw.setConstant(0.);
@@ -120,70 +154,26 @@ void PorousMedia::updateMoleFraction(double dt)
 			Aw[n] = -dw - std::max(fluidData.u[n], 0.0);
 			Ae[n] = -de - std::max(-fluidData.u[n + 1], 0.0);
 			Ap[n] = alpha + std::max(fluidData.u[n + 1], 0.0) + std::max(-fluidData.u[n], 0.0) + de + dw;
-			X[n] = alpha * fluidDataLastStep.Ci[i][n] + fluidData.Smi[i][n] * dx;
+			X[n] = alpha * fluidDataLastStep.Ci[component][n] + density * eb * fluidData.Smi[component][n] * dx;
 
-			LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.Ci[i]);
+			LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.Ci[component]);
 		}
 	}
-}
-
-
-void PorousMedia::setIsothermModel(const std::string& component, const DualSiteLangmuirIsothermParameters& ips)
-{
-	IsothermModel* isothermModel = getIsothermModel(component);
-	if (isothermModel != nullptr)
-	{
-		isothermModel->isotherm = createIsotherm(ips);
-	}
-}
-
-void PorousMedia::setIsothermModel(const std::string& component)
-{
-	IIsotherm* isotherm= getIsothermModel(component);
-	if (isotherm != nullptr)
-	{
-		isotherm = createIsotherm();
-	}
-}
-
-IIsotherm* PorousMedia::getIsothermModel(const std::string& component)
-{
-	if (isothermModels.size() < 1) return nullptr;
-	
-	IIsotherm* model = nullptr;
-
-	for (auto& [type, isothermModel] : isothermModels)
-	{
-		model = isothermModel.getIsotherm(component);
-	}
-
-	return model;
 }
 
 void PorousMedia::updateIsotherms()
 {
-	for (int i = 0; i < fluidData.qi_sat.size(); ++i)
+	for (auto& [type, model] : isothermModels)
 	{
-		for (auto& [type, model] : isothermModels)
-		{
-			model.updateIsotherm(fluidData);
-		}
+		model.updateIsotherm(fluidData);
 	}
 }
 
 void PorousMedia::updateSourceTerms()
 {
-	for (int n = 1; n < fluidData.C.size() - 1; ++n) // Loop through all central cells
+	for (auto& [type, model] : isothermModels)
 	{
-		fluidData.Sm[n] = 0;
-		fluidData.Se[n] = 0;
-		for (int i = 0; i < isothermModels.size(); ++i) // Number of components
-		{
-			fluidData.Smi[i][n] = density * eb * isothermModels[i].ki * (fluidData.qi_sat[i][n] - fluidData.qi[i][n]);
-			fluidData.Sei[i][n] = fluidData.Smi[i][n] * isothermModels[i].Hads;
-			fluidData.Sm[n] += fluidData.Smi[i][n];
-			fluidData.Se[n] += fluidData.Sei[i][n];
-		}
+		model.updateSourceTerms(fluidData);
 	}
 }
 
@@ -243,7 +233,7 @@ void FluidData::resize(int sizeOfVectors, const Fluid& fluid)
 	qi_sat.clear();
 	Smi.clear();
 	Sei.clear();
-	for (auto& component : componentNames)
+	for (const auto& component : componentNames)
 	{
 		yi[component].resize(sizeOfVectors);
 		yi[component].setConstant(0.);
@@ -262,5 +252,11 @@ void FluidData::resize(int sizeOfVectors, const Fluid& fluid)
 
 		Sei[component].resize(sizeOfVectors);
 		Sei[component].setConstant(0.);
+
+		ki[component].resize(sizeOfVectors);
+		ki[component].setConstant(0.);
+
+		Hads[component].resize(sizeOfVectors);
+		Hads[component].setConstant(0.);
 	}
 }

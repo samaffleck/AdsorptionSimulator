@@ -20,16 +20,19 @@ struct FluidData
     std::unordered_map<std::string, Eigen::VectorXd> Ci{};          // Molar concentration of component i [mol/m3]
     std::unordered_map<std::string, Eigen::VectorXd> qi{};          // Solid phase concentration [mol/kg]
     std::unordered_map<std::string, Eigen::VectorXd> qi_sat{};      // Equilibrium solid phase concentration [mol/kg]
-    std::unordered_map<std::string, Eigen::VectorXd> Smi{};         // mass source [mol of component i/(m3 of reactor - s)]
-    std::unordered_map<std::string, Eigen::VectorXd> Sei{};         // energy source [J/(m3-s)]
+    std::unordered_map<std::string, Eigen::VectorXd> Smi{};         // mass source [mol of component i/(kg solid - s)]
+    std::unordered_map<std::string, Eigen::VectorXd> Sei{};         // energy source [J/(kg-s)]
     
+    std::unordered_map<std::string, Eigen::VectorXd> ki{};          // Mass transfer coefficient [s]
+    std::unordered_map<std::string, Eigen::VectorXd> Hads{};        // Heat of adsorption [J/mol]
+
     // Overall fluid parameters
     Eigen::VectorXd rho{};                      // Gas density [kg / m3]
     Eigen::VectorXd C{};                        // Total molar concentration [mol/m3]
     Eigen::VectorXd T{};                        // Temperature [K]
     Eigen::VectorXd P{};                        // Pressure [Pa]
-    Eigen::VectorXd Sm{};                       // Total mass source [mol/(m3-s)]
-    Eigen::VectorXd Se{};                       // Total energy source [J/(m3-s)]
+    Eigen::VectorXd Sm{};                       // Total mass source [mol/(kg-s)]
+    Eigen::VectorXd Se{};                       // Total energy source [J/(kg-s)]
     Eigen::VectorXd Yt{};                       // Sum of mole fractions [mol/mol]
     Eigen::VectorXd vis{};                      // Fluid viscisity [Pa-s]
     Eigen::VectorXd Cp{};                       // Fluid heat capcity [J/(mol-K)]
@@ -66,12 +69,11 @@ public:
     void setIsothermModel(const std::string& component, const DualSiteLangmuirIsothermParameters& ips);
     void setIsothermModel(const std::string& component);
     
-    IIsotherm* getIsothermModel(const std::string& component);
+    //IIsotherm* getIsothermModel(const std::string& component);
 
     void updateIsotherms();
 
     void setMassTransferCoefficient(const std::string& component, double ki);
-    
     void setHeatOfAdsorption(const std::string& component, double Hads);
 
     void setLayerLength(double length);
