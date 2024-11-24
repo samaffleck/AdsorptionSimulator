@@ -124,7 +124,7 @@ void PorousMedia::integrate(double dt)
 	updateFlowrates();
 	updateIsotherms();
 	updateSourceTerms();
-
+	
 	// Implicit equations
 	updateMoleFraction(dt);
 	updateVelocity();

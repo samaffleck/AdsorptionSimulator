@@ -45,8 +45,8 @@ public:
 
 	void initialise(); // Sets the initial conditions to all cell values
 
-	void updateBoundaryConditions(const Step& step);
-
+	void setBoundaryConditions(const Step& step);
+	
 	void integrate(double dt);
 	
 	Wall wall{};
@@ -64,5 +64,6 @@ private:
 	void addIsothermModel(const std::string& component);
 	void removeIsothermModel(const std::string& component);
 	void resizeData();
+	void updateBoundaryCells();
 
 };

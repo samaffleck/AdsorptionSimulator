@@ -14,7 +14,7 @@ void Cycle::run()
         {
             std::cout << "Executing step: " << stepName << std::endl;
 
-            reactor.updateBoundaryConditions(step);
+            reactor.setBoundaryConditions(step);
 
             double elapsedTime = 0.0;
             while (elapsedTime < step.stepTime) 

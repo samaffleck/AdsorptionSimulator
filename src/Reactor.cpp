@@ -83,6 +83,82 @@ void Reactor::resizeData()
     }
 }
 
+void Reactor::updateBoundaryCells()
+{
+    // Get inflow and outflow index. Index = 0 = BOTTOM, Index = N = TOP
+    int inIndex = 0;
+    PorousMedia* inLayer = &layers.begin()->second;
+
+    int outIndex = 0;
+    PorousMedia* outLayer = &layers.end()->second;
+
+    int di = 1;
+
+    if (inflow.location == BoundaryConditionLocation::BOTTOM)
+    {
+        inIndex = 0;
+        outIndex = int(inLayer->fluidData.C.size()) - 1;
+    }
+    else
+    {
+        inLayer = &layers.end()->second;
+        outLayer = &layers.begin()->second;
+        inIndex = int(inLayer->fluidData.C.size()) - 1;
+        outIndex = 0;
+        di = -1;
+    }
+
+    // Set the inflow conditions
+    inLayer->fluidData.u[inIndex] = inflow.u_in;
+    inLayer->fluidData.T[inIndex] = 2 * inflow.T_in - inLayer->fluidData.T[1];
+    inLayer->fluidData.P[inIndex] = inLayer->fluidData.P[inIndex + di]; // No pressure drop in the first hald cell
+    inLayer->fluidData.C[inIndex] = inLayer->fluidData.P[inIndex] / (8.314 * inLayer->fluidData.T[inIndex]);
+    for (const auto& component : fluid.components)
+    {
+        inLayer->fluidData.yi[component][inIndex] = 2 * inflow.y_in[component] - inLayer->fluidData.yi[component][inIndex + di];
+        inLayer->fluidData.Ci[component][inIndex] = 2 * inflow.y_in[component] * inLayer->fluidData.P[inIndex + di] / (8.314 * inflow.T_in) - inLayer->fluidData.Ci[component][inIndex + di];
+    }
+    
+    // Stitch the interlayers
+    for (auto itt = layers.begin(); itt != layers.end(); ++itt)
+    {
+        auto nextItt = std::next(itt);
+        if (nextItt != layers.end())
+        {
+            auto& layer = itt->second;
+            auto& nextLayer = nextItt->second;
+            
+            // TODO: what if flow is top down?
+            nextLayer.fluidData.u[0] = layer.fluidData.u[layer.fluidData.u.size() - 1];
+
+            nextLayer.fluidData.C[0] = layer.fluidData.C[layer.fluidData.C.size() - 2];
+            nextLayer.fluidData.T[0] = layer.fluidData.T[layer.fluidData.T.size() - 2];
+        
+            layer.fluidData.C[layer.fluidData.C.size() - 1] = nextLayer.fluidData.C[1];
+            layer.fluidData.T[layer.fluidData.T.size() - 1] = nextLayer.fluidData.T[1];
+        
+            for (const auto& component : fluid.components)
+            {
+                nextLayer.fluidData.Ci[component][0] = layer.fluidData.Ci[component][layer.fluidData.C.size() - 2];
+                nextLayer.fluidData.yi[component][0] = layer.fluidData.yi[component][layer.fluidData.C.size() - 2];
+
+                layer.fluidData.Ci[component][layer.fluidData.C.size() - 1] = nextLayer.fluidData.Ci[component][1];
+                layer.fluidData.yi[component][layer.fluidData.C.size() - 1] = nextLayer.fluidData.yi[component][1];
+            }
+        }
+    }
+
+    // Outflow boundary conditions
+    outLayer->fluidData.T[outIndex] = outLayer->fluidData.T[outIndex - di];
+    outLayer->fluidData.C[outIndex] = outLayer->fluidData.C[outIndex - di];
+    outLayer->fluidData.P[outIndex] = outflow.P_out;
+    for (const auto& component : fluid.components)
+    {
+        outLayer->fluidData.Ci[component][outIndex] = outLayer->fluidData.Ci[component][outIndex - di];
+        outLayer->fluidData.yi[component][outIndex] = outLayer->fluidData.yi[component][outIndex - di];
+    }
+}
+
 void Reactor::setDispersionModel(double dispersionCoefficient)
 {
     dispersionModel = std::make_unique<DispersionModelConstant>(dispersionCoefficient);
@@ -110,7 +186,7 @@ void Reactor::initialise()
     }
 }
 
-void Reactor::updateBoundaryConditions(const Step& step)
+void Reactor::setBoundaryConditions(const Step& step)
 {
     inflow = step.inflow;
     outflow = step.outflow;
@@ -118,6 +194,8 @@ void Reactor::updateBoundaryConditions(const Step& step)
 
 void Reactor::integrate(double dt)
 {
+    updateBoundaryCells(); // Sets the inflow and outflow cells, as well as updating each layers interface
+
     for (auto& [layerName, layer] : layers) 
     {
         dispersionModel->update(layer);
