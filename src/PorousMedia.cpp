@@ -128,6 +128,7 @@ void PorousMedia::integrate(double dt)
 	
 	// Implicit equations
 	updateMoleFraction(dt);
+	updatePressure(dt);
 	updateVelocity();
 
 	fluidDataLastStep = fluidData;
@@ -215,14 +216,9 @@ void PorousMedia::updatePressure(double dt)
 
 void PorousMedia::updateVelocity()
 {
-	Eigen::VectorXd Ae(fluidData.u.size());
-	Eigen::VectorXd Aw(fluidData.u.size());
-	Eigen::VectorXd Ap(fluidData.u.size());
-	Eigen::VectorXd X(fluidData.u.size());
-
 	for (int n = 0; n < fluidData.u.size(); ++n)
 	{
-		//fluidData.u[n] = 
+        fluidData.u[n] = - (k / (fluidData.vis[0] / fluidData.rho[0])) * (fluidData.P[n + 1] - fluidData.P[n]) / dx;
 	}
 }
 
