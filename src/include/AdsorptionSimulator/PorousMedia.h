@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Fluid.h"
-#include "Reactor.h"
+//#include "Reactor.h"
 #include "Isotherm.h"
 
 #include <Eigen/Dense>
@@ -92,6 +92,8 @@ public:
     double dp = 1e-3;                   // Particle diameter [m]
     double poreDiameter = 1e-6;         // Pore diameter [m]
     double tau = 0.1;                   // Macropore Void Fraction / tortuosity
+    double permeability = 1;
+    double compressibility = 1;
 
     std::string name = "Default Solid";
 
@@ -112,5 +114,6 @@ private:
     void updateFlowrates();
 
     void updateMoleFraction(double dt);
+    void updatePressure(double dt);
     void updateVelocity();
 };

@@ -1,16 +1,23 @@
 #include "AdsorptionSimulator/Reactor.h"
+#include "AdsorptionSimulator/DispersionModel.h"
 
 #include <stdexcept>
 #include <iostream>
+#include <algorithm>  
 
-void Reactor::addLayer(const std::string& layerName)
+Reactor::Reactor(Fluid &fluid) : fluid(fluid)
+{
+    dispersionModel = std::make_unique<DispersionModelConstant>(1e-5);
+}
+
+void Reactor::addLayer(const std::string &layerName)
 {
     if (layers.find(layerName) != layers.end()) 
     {
         throw std::runtime_error("Layer with name '" + layerName + "' already exists.");
     }
-    layers.try_emplace(layerName, PorousMedia(fluid, *this));
-
+    layers.emplace(layerName, PorousMedia(fluid, *this));
+    
     updateLength();
 }
 

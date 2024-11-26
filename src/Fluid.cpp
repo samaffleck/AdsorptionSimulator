@@ -1,5 +1,7 @@
 #include "AdsorptionSimulator/Fluid.h"
 
+#include <algorithm>  
+
 
 void Fluid::addComponent(const std::string& componentName)
 {

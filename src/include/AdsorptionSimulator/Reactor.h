@@ -1,20 +1,18 @@
 #pragma once
 
+#include "DispersionModel.h"
 #include "PorousMedia.h"
 #include "Wall.h"
-#include "Fluid.h"
+//#include "Fluid.h"
 #include "BoundaryCondition.h"
-#include "DispersionModel.h"
 #include "Cycle.h"
 
 #include <vector>
 #include <unordered_map>
 #include <memory>
 
-struct PorousMedia;
-struct IDispersionModel;
-struct DispersionModelConstant;
 struct Step;
+struct Fluid;
 
 struct InitialCondition
 {
@@ -30,7 +28,7 @@ struct InitialCondition
 struct Reactor
 {
 public:
-	Reactor(Fluid& fluid) : fluid(fluid) {}
+	Reactor(Fluid& fluid);
 
 	void addLayer(const std::string& layerName);
 	void removeLayer(const std::string& layerName);
@@ -50,7 +48,7 @@ public:
 	void integrate(double dt);
 	
 	Wall wall{};
-	std::unique_ptr<IDispersionModel> dispersionModel = std::make_unique<DispersionModelConstant>(1e-5);
+	std::unique_ptr<IDispersionModel> dispersionModel;
 	InitialCondition initialCondition{};
 
 private:

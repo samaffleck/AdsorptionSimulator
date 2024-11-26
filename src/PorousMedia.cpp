@@ -2,6 +2,7 @@
 #include "AdsorptionSimulator/Isotherm.h"
 #include "AdsorptionSimulator/ThomasAlgoritms.h"
 #include "AdsorptionSimulator/Fluid.h"
+#include "AdsorptionSimulator/Reactor.h"
 
 #include "CoolProp.h"
 
@@ -164,6 +165,52 @@ void PorousMedia::updateMoleFraction(double dt)
 			LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.Ci[component]);
 		}
 	}
+}
+
+void PorousMedia::updatePressure(double dt)
+{
+    int N_total = fluidData.P.size();       // Total number of nodes including ghost nodes
+
+    Eigen::VectorXd Ae(N_total);
+    Eigen::VectorXd Aw(N_total);
+    Eigen::VectorXd Ap(N_total);
+    Eigen::VectorXd X(N_total);
+
+    // Constants
+    double D = k / (fluidData.vis[0] / fluidData.rho[0]);   // Diffusivity
+    double S = eb * compressibility;                 		// Storage coefficient
+    double alpha = S * dx * dx / dt;        				// Coefficient for time discretization
+
+    Ae.setZero();
+    Aw.setZero();
+    Ap.setZero();
+    X.setZero();
+
+	int i = 0;
+	Aw(i) = 0;
+	Ae(i) = 0;
+	Ap(i) = 1;
+	X(i) = fluidData.P(i);
+
+    // Interior Nodes (i = 2 to N_physical - 1)
+    for (i = 1; i < N_total - 1; ++i)
+    {
+		D = k / (fluidData.vis[i] / fluidData.rho[i]);
+
+        Aw(i) = -D;
+        Ae(i) = -D;
+        Ap(i) = 2 * D + alpha;
+        X(i) = alpha * fluidDataLastStep.P(i);
+    }
+
+	i = N_total - 1;
+	D = k / (fluidData.vis[i] / fluidData.rho[i]);
+	Aw(i) = 0;
+	Ae(i) = 0;
+	Ap(i) = 1;
+	X(i) = fluidData.P(i);
+
+    LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.P);
 }
 
 void PorousMedia::updateVelocity()
