@@ -4,8 +4,6 @@
 #include "AdsorptionSimulator/Fluid.h"
 #include "AdsorptionSimulator/Reactor.h"
 
-#include "CoolProp.h"
-
 #include <memory>
 
 
@@ -80,12 +78,12 @@ void PorousMedia::setIsothermModel(const std::string& component)
 
 void PorousMedia::setMassTransferCoefficient(const std::string& component, double ki)
 {
-	fluidData.ki[component].setConstant(ki);
+	massTransferCoefficient[component] = ki;
 }
 
 void PorousMedia::setHeatOfAdsorption(const std::string& component, double Hads)
 {
-	fluidData.Hads[component].setConstant(Hads);
+	heatOfAdsorption[component] = Hads;
 }
 
 void PorousMedia::setLayerLength(double length) 
@@ -103,7 +101,7 @@ void PorousMedia::setNumberOfCells(int numberOfCells_)
 {
 	numberOfCells = numberOfCells_;
 	dx = L / numberOfCells;
-	resizeData();
+	reactor.resizeData();
 }
 
 int PorousMedia::getNumberOfCells() const
@@ -111,164 +109,72 @@ int PorousMedia::getNumberOfCells() const
 	return numberOfCells;
 }
 
-void PorousMedia::resizeData()
+void PorousMedia::updateMoleFraction(int startIndex, int endIndex, const std::string& component, double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X)
 {
-	int sizeOfVectors = numberOfCells + 2; // 2 ghost cells are used either size of the domain
-	fluidData.resize(sizeOfVectors, fluid);
-	fluidDataLastStep.resize(sizeOfVectors, fluid);
-}
-
-void PorousMedia::integrate(double dt)
-{
-	// Explicit equations
-	updateConstants();
-	updateFlowrates();
-	updateIsotherms();
-	updateSourceTerms();
-	
-	// Implicit equations
-	updateMoleFraction(dt);
-	updatePressure(dt);
-	updateVelocity();
-
-	fluidDataLastStep = fluidData;
-}
-
-void PorousMedia::updateMoleFraction(double dt)
-{
-	Eigen::VectorXd Ae(fluidData.C.size());
-	Eigen::VectorXd Aw(fluidData.C.size());
-	Eigen::VectorXd Ap(fluidData.C.size());
-	Eigen::VectorXd X(fluidData.C.size());
-
 	double alpha = et * dx / dt;
-
-	for (const auto& component : fluid.components)
+	double de = 0;
+	double dw = 0;
+	
+	for (int n = startIndex; n <= endIndex; ++n)
 	{
-		Ae.setConstant(0.);
-		Aw.setConstant(0.);
-		Ap.setConstant(0.);
-		X.setConstant(0.);
-		
-		double de = 0;
-		double dw = 0;
-		
-		for (int n = 1; n < fluidData.C.size() - 1; ++n)
-		{
-			de = eb * 0.5 * (fluidData.Dl[n] + fluidData.Dl[n + 1]) / dx;
-			dw = eb * 0.5 * (fluidData.Dl[n] + fluidData.Dl[n - 1]) / dx;
+		de = eb * 0.5 * (reactor.fluidData.Dl[n] + reactor.fluidData.Dl[n + 1]) / dx;
+		dw = eb * 0.5 * (reactor.fluidData.Dl[n] + reactor.fluidData.Dl[n - 1]) / dx;
 
-			Aw[n] = -dw - std::max(fluidData.u[n - 1], 0.0);
-			Ae[n] = -de - std::max(-fluidData.u[n], 0.0);
-			Ap[n] = alpha + std::max(fluidData.u[n], 0.0) + std::max(-fluidData.u[n - 1], 0.0) + de + dw;
-			X[n] = alpha * fluidDataLastStep.Ci[component][n] + density * eb * fluidData.Smi[component][n] * dx;
-
-			LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.Ci[component]);
-		}
+		Aw[n] = -dw - std::max(reactor.fluidData.u[n - 1], 0.0);
+		Ae[n] = -de - std::max(-reactor.fluidData.u[n], 0.0);
+		Ap[n] = alpha + std::max(reactor.fluidData.u[n], 0.0) + std::max(-reactor.fluidData.u[n - 1], 0.0) + de + dw;
+		X[n] = alpha * reactor.fluidDataLastStep.Ci[component][n] + density * eb * reactor.fluidData.Smi[component][n] * dx;
 	}
 }
 
-void PorousMedia::updatePressure(double dt)
+void PorousMedia::updatePressure(int startIndex, int endIndex, double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X)
 {
-    int N_total = fluidData.P.size();       // Total number of nodes including ghost nodes
-
-    Eigen::VectorXd Ae(N_total);
-    Eigen::VectorXd Aw(N_total);
-    Eigen::VectorXd Ap(N_total);
-    Eigen::VectorXd X(N_total);
-
     // Constants
-    double D = k / (fluidData.vis[0] / fluidData.rho[0]);   // Diffusivity
-    double S = eb * compressibility;                 		// Storage coefficient
-    double alpha = S * dx * dx / dt;        				// Coefficient for time discretization
-
-    Ae.setZero();
-    Aw.setZero();
-    Ap.setZero();
-    X.setZero();
-
-	int i = 0;
-	Aw(i) = 0;
-	Ae(i) = 0;
-	Ap(i) = 1;
-	X(i) = fluidData.P(i);
-
-    // Interior Nodes (i = 2 to N_physical - 1)
-    for (i = 1; i < N_total - 1; ++i)
+    double D = permeability / (reactor.fluidData.vis[0] / reactor.fluidData.rho[0]);   // Diffusivity
+    double S = eb * compressibility;                 						// Storage coefficient
+    double alpha = S * dx * dx / dt;        								// Coefficient for time discretization
+	
+    for (int i = startIndex; i <= endIndex; ++i)
     {
-		D = k / (fluidData.vis[i] / fluidData.rho[i]);
+		D = k / (reactor.fluidData.vis[i] / reactor.fluidData.rho[i]);
 
         Aw(i) = -D;
         Ae(i) = -D;
         Ap(i) = 2 * D + alpha;
-        X(i) = alpha * fluidDataLastStep.P(i);
+        X(i) = alpha * reactor.fluidDataLastStep.P(i);
     }
-
-	i = N_total - 1;
-	D = k / (fluidData.vis[i] / fluidData.rho[i]);
-	Aw(i) = 0;
-	Ae(i) = 0;
-	Ap(i) = 1;
-	X(i) = fluidData.P(i);
-
-    LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.P);
 }
 
-void PorousMedia::updateVelocity()
+void PorousMedia::updateVelocity(int startIndex, int endIndex)
 {
-	for (int n = 0; n < fluidData.u.size(); ++n)
+	for (int n = startIndex; n <= endIndex; ++n)
 	{
-        fluidData.u[n] = - (k / (fluidData.vis[0] / fluidData.rho[0])) * (fluidData.P[n + 1] - fluidData.P[n]) / dx;
+        reactor.fluidData.u[n] = - (permeability / (reactor.fluidData.vis[0] / reactor.fluidData.rho[0])) * (reactor.fluidData.P[n + 1] - reactor.fluidData.P[n]) / dx;
 	}
 }
 
-void PorousMedia::updateConstants()
-{
-	fluidData.Cp.setConstant(0.);
-	fluidData.k.setConstant(0.);
-	fluidData.rho.setConstant(0.);
-	fluidData.vis.setConstant(0.);
-	fluidData.Yt.setConstant(0.);
 
-	for (int n = 0; n < fluidData.C.size(); ++n)
+void PorousMedia::updateIsotherms(FluidData& fluidData, int startIndex, int endIndex)
+{
+	for (auto& [type, model] : isothermModels)
 	{
-		for (const auto& component : fluid.components)
+		model.updateIsotherm(fluidData, startIndex, endIndex);
+	}
+}
+
+void PorousMedia::updateSourceTerms(FluidData& fluidData, int startIndex, int endIndex)
+{
+	for (int n = startIndex; n <= endIndex; ++n) // Loop through all central cells
+	{
+		fluidData.Sm[n] = 0;
+		fluidData.Se[n] = 0;
+		for (const auto& component : fluid.components) // Sub-Component list
 		{
-			fluidData.yi[component][n] = fluidData.Ci[component][n] / fluidData.C[n];
-			fluidData.Cp[n] += fluidData.yi[component][n] * CoolProp::PropsSI("CPMOLAR", "P", fluidData.P[n], "T", fluidData.T[n], component);
-			fluidData.k[n] += fluidData.yi[component][n] * CoolProp::PropsSI("CONDUCTIVITY", "P", fluidData.P[n], "T", fluidData.T[n], component);
-			fluidData.rho[n] += fluidData.Ci[component][n] * CoolProp::Props1SI("molemass", component) * 1e-3;
-			fluidData.vis[n] += fluidData.yi[component][n] * CoolProp::PropsSI("V", "P", fluidData.P[n], "T", fluidData.T[n], component);
-			fluidData.Yt[n] += fluidData.yi[component][n];
+			fluidData.Smi[component][n] = massTransferCoefficient[component] * (fluidData.qi_sat[component][n] - fluidData.qi[component][n]);
+			fluidData.Sei[component][n] = fluidData.Smi[component][n] * heatOfAdsorption[component];
+			fluidData.Sm[n] += fluidData.Smi[component][n];
+			fluidData.Se[n] += fluidData.Sei[component][n];
 		}
-	}
-}
-
-void PorousMedia::updateIsotherms()
-{
-	for (auto& [type, model] : isothermModels)
-	{
-		model.updateIsotherm(fluidData);
-	}
-}
-
-void PorousMedia::updateSourceTerms()
-{
-	for (auto& [type, model] : isothermModels)
-	{
-		model.updateSourceTerms(fluidData);
-	}
-}
-
-void PorousMedia::updateFlowrates()
-{
-	double area = reactor.wall.getArea();
-
-	for (int n = 0; n < fluidData.u.size(); ++n)
-	{
-		fluidData.volumeFlow[n] = fluidData.u[n] * area;
-		fluidData.massFlow[n] = fluidData.volumeFlow[n] * fluidData.rho[n];
-		fluidData.molarFlow[n] = fluidData.volumeFlow[n] * fluidData.C[n];
 	}
 }
 

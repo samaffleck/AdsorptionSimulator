@@ -46,22 +46,38 @@ public:
 	void setBoundaryConditions(const Step& step);
 	
 	void integrate(double dt);
+
+	void resizeData();
 	
 	Wall wall{};
+	
 	std::unique_ptr<IDispersionModel> dispersionModel;
+	
 	InitialCondition initialCondition{};
+
+	FluidData fluidData;
+    FluidData fluidDataLastStep;
 
 private:
 	Fluid& fluid;
+	
 	std::unordered_map<std::string, PorousMedia> layers{};
+	
 	Inflow inflow{};
 	Outflow outflow{};
+
 	double length{};
 
 private:
 	void addIsothermModel(const std::string& component);
 	void removeIsothermModel(const std::string& component);
-	void resizeData();
 	void updateBoundaryCells();
+	void updateIsotherms();
+	void updateConstants();
+	void updateFlowrates();
+	void updateSourceTerms();
+	void updateMoleFraction(double dt);
+	void updatePressure(double dt);
+	void updateVelocity();
 
 };

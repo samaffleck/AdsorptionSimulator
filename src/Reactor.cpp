@@ -1,5 +1,8 @@
 #include "AdsorptionSimulator/Reactor.h"
 #include "AdsorptionSimulator/DispersionModel.h"
+#include "AdsorptionSimulator/ThomasAlgoritms.h"
+
+#include "CoolProp.h"
 
 #include <stdexcept>
 #include <iostream>
@@ -19,6 +22,7 @@ void Reactor::addLayer(const std::string &layerName)
     layers.emplace(layerName, PorousMedia(fluid, *this));
     
     updateLength();
+    resizeData();
 }
 
 void Reactor::removeLayer(const std::string& layerName)
@@ -31,6 +35,7 @@ void Reactor::removeLayer(const std::string& layerName)
     layers.erase(it);
 
     updateLength();
+    resizeData();
 }
 
 PorousMedia& Reactor::getLayer(const std::string& layerName)
@@ -84,46 +89,45 @@ void Reactor::removeIsothermModel(const std::string& component)
 
 void Reactor::resizeData()
 {
+    int totalCells = 2; 
+
     for (auto& [layerName, layer] : layers)
     {
-        layer.resizeData(); // Assuming PorousMedia has `resizeData`
+        totalCells += layer.getNumberOfCells();
     }
+
+    fluidData.resize(totalCells, fluid);
+    fluidDataLastStep.resize(totalCells, fluid);
 }
 
 void Reactor::updateBoundaryCells()
 {
     // Get inflow and outflow index. Index = 0 = BOTTOM, Index = N = TOP
     int inIndex = 0;
-    PorousMedia* inLayer = &layers.begin()->second;
-
     int outIndex = 0;
-    PorousMedia* outLayer = &layers.end()->second;
-
     int di = 1;
 
     if (inflow.location == BoundaryConditionLocation::BOTTOM)
     {
         inIndex = 0;
-        outIndex = int(inLayer->fluidData.C.size()) - 1;
+        outIndex = int(fluidData.C.size()) - 1;
     }
     else
     {
-        inLayer = &layers.end()->second;
-        outLayer = &layers.begin()->second;
-        inIndex = int(inLayer->fluidData.C.size()) - 1;
+        inIndex = int(fluidData.C.size()) - 1;
         outIndex = 0;
         di = -1;
     }
 
     // Set the inflow conditions
-    inLayer->fluidData.u[inIndex] = inflow.u_in;
-    inLayer->fluidData.T[inIndex] = 2 * inflow.T_in - inLayer->fluidData.T[1];
-    inLayer->fluidData.P[inIndex] = inLayer->fluidData.P[inIndex + di]; // No pressure drop in the first hald cell
-    inLayer->fluidData.C[inIndex] = inLayer->fluidData.P[inIndex] / (8.314 * inLayer->fluidData.T[inIndex]);
+    fluidData.u[inIndex] = inflow.u_in;
+    fluidData.T[inIndex] = 2 * inflow.T_in - fluidData.T[1];
+    fluidData.P[inIndex] = fluidData.P[inIndex + di]; // No pressure drop in the first hald cell
+    fluidData.C[inIndex] = fluidData.P[inIndex] / (8.314 * fluidData.T[inIndex]);
     for (const auto& component : fluid.components)
     {
-        inLayer->fluidData.yi[component][inIndex] = 2 * inflow.y_in[component] - inLayer->fluidData.yi[component][inIndex + di];
-        inLayer->fluidData.Ci[component][inIndex] = 2 * inflow.y_in[component] * inLayer->fluidData.P[inIndex + di] / (8.314 * inflow.T_in) - inLayer->fluidData.Ci[component][inIndex + di];
+        fluidData.yi[component][inIndex] = 2 * inflow.y_in[component] - fluidData.yi[component][inIndex + di];
+        fluidData.Ci[component][inIndex] = 2 * inflow.y_in[component] * fluidData.P[inIndex + di] / (8.314 * inflow.T_in) - fluidData.Ci[component][inIndex + di];
     }
     
     // Stitch the interlayers
@@ -136,33 +140,31 @@ void Reactor::updateBoundaryCells()
             auto& nextLayer = nextItt->second;
             
             // TODO: what if flow is top down?
-            nextLayer.fluidData.u[0] = layer.fluidData.u[layer.fluidData.u.size() - 1];
-
-            nextLayer.fluidData.C[0] = layer.fluidData.C[layer.fluidData.C.size() - 2];
-            nextLayer.fluidData.T[0] = layer.fluidData.T[layer.fluidData.T.size() - 2];
-        
-            layer.fluidData.C[layer.fluidData.C.size() - 1] = nextLayer.fluidData.C[1];
-            layer.fluidData.T[layer.fluidData.T.size() - 1] = nextLayer.fluidData.T[1];
+            fluidData.u[0] = fluidData.u[fluidData.u.size() - 1];
+            fluidData.C[0] = fluidData.C[fluidData.C.size() - 2];
+            fluidData.T[0] = fluidData.T[fluidData.T.size() - 2];
+            fluidData.C[fluidData.C.size() - 1] = fluidData.C[1];
+            fluidData.T[fluidData.T.size() - 1] = fluidData.T[1];
         
             for (const auto& component : fluid.components)
             {
-                nextLayer.fluidData.Ci[component][0] = layer.fluidData.Ci[component][layer.fluidData.C.size() - 2];
-                nextLayer.fluidData.yi[component][0] = layer.fluidData.yi[component][layer.fluidData.C.size() - 2];
+                fluidData.Ci[component][0] = fluidData.Ci[component][fluidData.C.size() - 2];
+                fluidData.yi[component][0] = fluidData.yi[component][fluidData.C.size() - 2];
 
-                layer.fluidData.Ci[component][layer.fluidData.C.size() - 1] = nextLayer.fluidData.Ci[component][1];
-                layer.fluidData.yi[component][layer.fluidData.C.size() - 1] = nextLayer.fluidData.yi[component][1];
+                fluidData.Ci[component][fluidData.C.size() - 1] = fluidData.Ci[component][1];
+                fluidData.yi[component][fluidData.C.size() - 1] = fluidData.yi[component][1];
             }
         }
     }
 
     // Outflow boundary conditions
-    outLayer->fluidData.T[outIndex] = outLayer->fluidData.T[outIndex - di];
-    outLayer->fluidData.C[outIndex] = outLayer->fluidData.C[outIndex - di];
-    outLayer->fluidData.P[outIndex] = outflow.P_out;
+    fluidData.T[outIndex] = fluidData.T[outIndex - di];
+    fluidData.C[outIndex] = fluidData.C[outIndex - di];
+    fluidData.P[outIndex] = outflow.P_out;
     for (const auto& component : fluid.components)
     {
-        outLayer->fluidData.Ci[component][outIndex] = outLayer->fluidData.Ci[component][outIndex - di];
-        outLayer->fluidData.yi[component][outIndex] = outLayer->fluidData.yi[component][outIndex - di];
+        fluidData.Ci[component][outIndex] = fluidData.Ci[component][outIndex - di];
+        fluidData.yi[component][outIndex] = fluidData.yi[component][outIndex - di];
     }
 }
 
@@ -172,24 +174,47 @@ void Reactor::setDispersionModel(double dispersionCoefficient)
 }
 
 void Reactor::initialise()
+{    
+    resizeData();
+
+    for (int n = 0; n < fluidData.P.size(); ++n)
+    {
+        fluidData.P[n] = initialCondition.P0;
+        fluidData.T[n] = initialCondition.T0;
+        fluidData.u[n] = initialCondition.u0;
+        fluidData.C[n] = initialCondition.P0 / (8.314 * initialCondition.T0);
+
+        for (const auto& component : fluid.components)
+        {
+            fluidData.yi[component][n] = initialCondition.yi0[component];
+            fluidData.Ci[component][n] = fluidData.C[n] * initialCondition.yi0[component];
+        }
+    }
+
+    updateIsotherms();
+
+    fluidData.qi = fluidData.qi_sat;
+}
+
+void Reactor::updateIsotherms()
 {
+    int startIndex = 0;
     for (auto& [layerName, layer] : layers)
     {
-        for (int n = 0; n < layer.fluidData.P.size(); ++n)
-        {
-            layer.fluidData.P[n] = initialCondition.P0;
-            layer.fluidData.T[n] = initialCondition.T0;
-            layer.fluidData.u[n] = initialCondition.u0;
-            layer.fluidData.C[n] = initialCondition.P0 / (8.314 * initialCondition.T0);
+        int endIndex = startIndex + layer.getNumberOfCells() - 1;
+        layer.updateIsotherms(fluidData, startIndex, endIndex); // Updates qi_sat for all components at each cell in the layer
+        startIndex = endIndex++;
+    }
+}
 
-            for (const auto& component : fluid.components)
-            {
-                layer.fluidData.yi[component][n] = initialCondition.yi0[component];
-                layer.fluidData.Ci[component][n] = layer.fluidData.C[n] * initialCondition.yi0[component];
-            }
-        }
-        layer.updateIsotherms(); // Updates qi_sat for all components at each cell in the layer
-        layer.fluidData.qi = layer.fluidData.qi_sat;
+void Reactor::updateSourceTerms()
+{
+    int startIndex = 0;
+    for (auto& [layerName, layer] : layers)
+    {
+        int endIndex = startIndex + layer.getNumberOfCells() - 1;
+        layer.updateSourceTerms(fluidData, startIndex, endIndex); // Updates qi_sat for all components at each cell in the layer
+        startIndex = endIndex++;
     }
 }
 
@@ -199,15 +224,126 @@ void Reactor::setBoundaryConditions(const Step& step)
     outflow = step.outflow;
 }
 
+void Reactor::updateConstants()
+{
+    fluidData.Cp.setConstant(0.);
+	fluidData.k.setConstant(0.);
+	fluidData.rho.setConstant(0.);
+	fluidData.vis.setConstant(0.);
+	fluidData.Yt.setConstant(0.);
+
+	for (int n = 0; n < fluidData.C.size(); ++n)
+	{
+		for (const auto& component : fluid.components)
+		{
+			fluidData.yi[component][n] = fluidData.Ci[component][n] / fluidData.C[n];
+			fluidData.Cp[n] += fluidData.yi[component][n] * CoolProp::PropsSI("CPMOLAR", "P", fluidData.P[n], "T", fluidData.T[n], component);
+			fluidData.k[n] += fluidData.yi[component][n] * CoolProp::PropsSI("CONDUCTIVITY", "P", fluidData.P[n], "T", fluidData.T[n], component);
+			fluidData.rho[n] += fluidData.Ci[component][n] * CoolProp::Props1SI("molemass", component) * 1e-3;
+			fluidData.vis[n] += fluidData.yi[component][n] * CoolProp::PropsSI("V", "P", fluidData.P[n], "T", fluidData.T[n], component);
+			fluidData.Yt[n] += fluidData.yi[component][n];
+		}
+	}
+}
+
+void Reactor::updateFlowrates()
+{
+    double area = wall.getArea();
+
+	for (int n = 0; n < fluidData.u.size(); ++n)
+	{
+		fluidData.volumeFlow[n] = fluidData.u[n] * area;
+		fluidData.massFlow[n] = fluidData.volumeFlow[n] * fluidData.rho[n];
+		fluidData.molarFlow[n] = fluidData.volumeFlow[n] * fluidData.C[n];
+	}
+}
+
+void Reactor::updateMoleFraction(double dt)
+{
+    Eigen::VectorXd Ae(fluidData.C.size());
+	Eigen::VectorXd Aw(fluidData.C.size());
+	Eigen::VectorXd Ap(fluidData.C.size());
+	Eigen::VectorXd X(fluidData.C.size());
+
+	for (const auto& component : fluid.components)
+	{
+        Ae.setZero();
+        Aw.setZero();
+        Ap.setZero();
+        X.setZero();
+
+        int startIndex = 0;
+		for(auto& [layerName, layer] : layers)
+        {
+            int endIndex = layer.getNumberOfCells() - 1;
+            layer.updateMoleFraction(startIndex, endIndex, component, dt, Ae, Aw, Ap, X);
+            startIndex = endIndex + 1;
+        }
+
+		LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.Ci[component]);
+	}
+}
+
+void Reactor::updatePressure(double dt)
+{
+    int totalCells = fluidData.P.size();
+    Eigen::VectorXd Ae(totalCells);
+	Eigen::VectorXd Aw(totalCells);
+	Eigen::VectorXd Ap(totalCells);
+	Eigen::VectorXd X(totalCells);
+    
+    Ae.setZero();
+    Aw.setZero();
+    Ap.setZero();
+    X.setZero();
+
+    int n = 0;
+    Ap(n) = 1;
+    X(n) = 1; // TODO: Inlet pressure
+
+    int startIndex = 0;
+    for(auto& [layerName, layer] : layers)
+    {
+        int endIndex = layer.getNumberOfCells() - 1;
+        layer.updatePressure(startIndex, endIndex, dt, Ae, Aw, Ap, X);
+        startIndex = endIndex + 1;
+    }
+
+    n = totalCells - 1;
+    Ap(n) = 1;
+    X(n) = 1; // TODO: Outlet pressure
+
+    LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.P);
+}
+
+void Reactor::updateVelocity()
+{
+    int startIndex = 0;
+    for(auto& [layerName, layer] : layers)
+    {
+        int endIndex = layer.getNumberOfCells() - 1;
+        layer.updateVelocity(startIndex, endIndex);
+        startIndex = endIndex + 1;
+    }
+}
+
 void Reactor::integrate(double dt)
 {
     updateBoundaryCells(); // Sets the inflow and outflow cells, as well as updating each layers interface
 
-    for (auto& [layerName, layer] : layers) 
-    {
-        dispersionModel->update(layer);
-        layer.integrate(dt);
-    }
+	// Explicit equations
+	updateConstants();
+	updateFlowrates();
+	updateIsotherms();
+	updateSourceTerms();
+    dispersionModel->update(fluidData);
+
+	// Implicit equations
+	updateMoleFraction(dt);
+	updatePressure(dt);
+	updateVelocity();
+
+	fluidDataLastStep = fluidData;
 }
 
 void InitialCondition::addComponent(const std::string& component)

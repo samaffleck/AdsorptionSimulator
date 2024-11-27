@@ -2,10 +2,10 @@
 #include "AdsorptionSimulator/PorousMedia.h"
 
 
-void DispersionModelConstant::update(PorousMedia& adsorbent)
+void DispersionModelConstant::update(FluidData& fluidData)
 {
-	for (int n = 0; n < adsorbent.fluidData.Dl.size(); ++n)
+	for (int n = 0; n < fluidData.Dl.size(); ++n)
 	{
-		adsorbent.fluidData.Dl[n] = constantDl;
+		fluidData.Dl[n] = constantDl;
 	}
 }

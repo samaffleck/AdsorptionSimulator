@@ -87,29 +87,13 @@ void IsothermModel::removeComponent(const std::string& component)
 	components.erase(it);
 }
 
-void IsothermModel::updateIsotherm(FluidData& fluidData)
+void IsothermModel::updateIsotherm(FluidData& fluidData, int startIndex, int endIndex)
 {
 	for (const auto& component : components)
 	{
-		for (int n = 1; n < fluidData.C.size() - 1; ++n) // Loop through central cells only
+		for (int n = startIndex; n <= endIndex; ++n) // Loop through layer cells only
 		{
 			isotherm->update(fluidData.qi_sat[component][n], fluidData.T[n], fluidData.P[n], fluidData.yi[component][n]);
-		}
-	}
-}
-
-void IsothermModel::updateSourceTerms(FluidData& fluidData)
-{
-	for (int n = 1; n < fluidData.C.size() - 1; ++n) // Loop through all central cells
-	{
-		fluidData.Sm[n] = 0;
-		fluidData.Se[n] = 0;
-		for (const auto& component : components) // Sub-Component list
-		{
-			fluidData.Smi[component][n] = fluidData.ki[component][n] * (fluidData.qi_sat[component][n] - fluidData.qi[component][n]);
-			fluidData.Sei[component][n] = fluidData.Smi[component][n] * fluidData.Hads[component][n];
-			fluidData.Sm[n] += fluidData.Smi[component][n];
-			fluidData.Se[n] += fluidData.Sei[component][n];
 		}
 	}
 }

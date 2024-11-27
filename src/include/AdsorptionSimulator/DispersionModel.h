@@ -1,11 +1,11 @@
 #pragma once
 
-struct PorousMedia;
+struct FluidData;
 
 struct IDispersionModel
 {
 	virtual ~IDispersionModel() = default;
-	virtual void update(PorousMedia& adsorbent) = 0;
+	virtual void update(FluidData& fluidData) = 0;
 };
 
 
@@ -13,7 +13,7 @@ struct DispersionModelConstant : public IDispersionModel
 {
 	DispersionModelConstant(double Dl) : constantDl(Dl) {}
 
-	void update(PorousMedia& adsorbent);
+	void update(FluidData& fluidData);
 
 	double constantDl;
 };

@@ -108,8 +108,7 @@ struct IsothermModel
 public:
     void addComponent(std::string component);
     void removeComponent(const std::string& component);
-    void updateIsotherm(FluidData& fluidData);
-    void updateSourceTerms(FluidData& fluidData);
+    void updateIsotherm(FluidData& fluidData, int startIndex, int endIndex);
     IIsotherm* getIsotherm(const std::string& component);
     
     std::unique_ptr<IIsotherm> isotherm = std::make_unique<InertIsotherm>();    // Default isotherm model is inert

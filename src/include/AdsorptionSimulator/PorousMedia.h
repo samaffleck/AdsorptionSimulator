@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Fluid.h"
-//#include "Reactor.h"
 #include "Isotherm.h"
 
 #include <Eigen/Dense>
@@ -23,9 +22,6 @@ struct FluidData
     std::unordered_map<std::string, Eigen::VectorXd> Smi{};         // mass source [mol of component i/(kg solid - s)]
     std::unordered_map<std::string, Eigen::VectorXd> Sei{};         // energy source [J/(kg-s)]
     
-    std::unordered_map<std::string, Eigen::VectorXd> ki{};          // Mass transfer coefficient [s]
-    std::unordered_map<std::string, Eigen::VectorXd> Hads{};        // Heat of adsorption [J/mol]
-
     // Overall fluid parameters
     Eigen::VectorXd rho{};                      // Gas density [kg / m3]
     Eigen::VectorXd C{};                        // Total molar concentration [mol/m3]
@@ -69,7 +65,12 @@ public:
     void setIsothermModel(const std::string& component, const DualSiteLangmuirIsothermParameters& ips);
     void setIsothermModel(const std::string& component);
     
-    void updateIsotherms();
+    void updateIsotherms(FluidData& fluidData, int startIndex, int endIndex);
+    void updateSourceTerms(FluidData& fluidData, int startIndex, int endIndex);
+
+    void updateMoleFraction(int startIndex, int endIndex, const std::string& component, double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X);
+    void updatePressure(int startIndex, int endIndex, double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X);
+    void updateVelocity(int startIndex, int endIndex);
 
     void setMassTransferCoefficient(const std::string& component, double ki);
     void setHeatOfAdsorption(const std::string& component, double Hads);
@@ -79,10 +80,6 @@ public:
 
     void setNumberOfCells(int numberOfCells);
     int getNumberOfCells() const;
-
-    void resizeData();
-
-    void integrate(double dt);
 
     double eb = 0.37;                   // Inter-particle bed voidage [m3/m3]
     double et = 0.65;                   // Intra-particle voidage [m3/m3]
@@ -97,9 +94,6 @@ public:
 
     std::string name = "Default Solid";
 
-    FluidData fluidData;
-    FluidData fluidDataLastStep;
-
 private:
     Fluid& fluid;
     Reactor& reactor;
@@ -107,13 +101,7 @@ private:
     int numberOfCells = 20;
     double L = 1.0;                             // Length of porous media domain [m]
     double dx = L / numberOfCells;
+    std::unordered_map<std::string, double> massTransferCoefficient{};          // Mass transfer coefficient [s]
+    std::unordered_map<std::string, double> heatOfAdsorption{};        // Heat of adsorption [J/mol]
 
-private:
-    void updateConstants();
-    void updateSourceTerms();
-    void updateFlowrates();
-
-    void updateMoleFraction(double dt);
-    void updatePressure(double dt);
-    void updateVelocity();
 };
