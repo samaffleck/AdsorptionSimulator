@@ -234,8 +234,6 @@ void FluidData::resize(int sizeOfVectors, const Fluid& fluid)
 	qi_sat.clear();
 	Smi.clear();
 	Sei.clear();
-	ki.clear();
-	Hads.clear();
 	for (const auto& component : fluid.components)
 	{
 		yi[component].resize(sizeOfVectors);
@@ -255,11 +253,5 @@ void FluidData::resize(int sizeOfVectors, const Fluid& fluid)
 
 		Sei[component].resize(sizeOfVectors);
 		Sei[component].setConstant(0.);
-
-		ki[component].resize(sizeOfVectors);
-		ki[component].setConstant(0.);
-
-		Hads[component].resize(sizeOfVectors);
-		Hads[component].setConstant(0.);
 	}
 }
