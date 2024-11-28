@@ -109,13 +109,19 @@ int PorousMedia::getNumberOfCells() const
 	return numberOfCells;
 }
 
-void PorousMedia::updateMoleFraction(int startIndex, int endIndex, const std::string& component, double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X)
+void PorousMedia::setStartEndIndex(int startIndex, int endIndex)
+{
+	m_StartIndex = startIndex;
+	m_EndIndex = endIndex;
+}
+
+void PorousMedia::updateMoleFraction(const std::string &component, double dt, Eigen::VectorXd &Ae, Eigen::VectorXd &Aw, Eigen::VectorXd &Ap, Eigen::VectorXd &X)
 {
 	double alpha = et * dx / dt;
 	double de = 0;
 	double dw = 0;
 	
-	for (int n = startIndex; n <= endIndex; ++n)
+	for (int n = m_StartIndex; n <= m_EndIndex; ++n)
 	{
 		de = eb * 0.5 * (reactor.fluidData.Dl[n] + reactor.fluidData.Dl[n + 1]) / dx;
 		dw = eb * 0.5 * (reactor.fluidData.Dl[n] + reactor.fluidData.Dl[n - 1]) / dx;
@@ -127,14 +133,14 @@ void PorousMedia::updateMoleFraction(int startIndex, int endIndex, const std::st
 	}
 }
 
-void PorousMedia::updatePressure(int startIndex, int endIndex, double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X)
+void PorousMedia::updatePressure(double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X)
 {
     // Constants
     double D = permeability / (reactor.fluidData.vis[0] / reactor.fluidData.rho[0]);   // Diffusivity
     double S = eb * compressibility;                 						// Storage coefficient
     double alpha = S * dx * dx / dt;        								// Coefficient for time discretization
 	
-    for (int i = startIndex; i <= endIndex; ++i)
+    for (int i = m_StartIndex; i <= m_EndIndex; ++i)
     {
 		D = k / (reactor.fluidData.vis[i] / reactor.fluidData.rho[i]);
 
@@ -145,26 +151,26 @@ void PorousMedia::updatePressure(int startIndex, int endIndex, double dt, Eigen:
     }
 }
 
-void PorousMedia::updateVelocity(int startIndex, int endIndex)
+void PorousMedia::updateVelocity()
 {
-	for (int n = startIndex; n <= endIndex; ++n)
+	for (int n = m_StartIndex; n <= m_EndIndex; ++n)
 	{
         reactor.fluidData.u[n] = - (permeability / (reactor.fluidData.vis[0] / reactor.fluidData.rho[0])) * (reactor.fluidData.P[n + 1] - reactor.fluidData.P[n]) / dx;
 	}
 }
 
 
-void PorousMedia::updateIsotherms(FluidData& fluidData, int startIndex, int endIndex)
+void PorousMedia::updateIsotherms(FluidData& fluidData)
 {
 	for (auto& [type, model] : isothermModels)
 	{
-		model.updateIsotherm(fluidData, startIndex, endIndex);
+		model.updateIsotherm(fluidData, m_StartIndex, m_EndIndex);
 	}
 }
 
-void PorousMedia::updateSourceTerms(FluidData& fluidData, int startIndex, int endIndex)
+void PorousMedia::updateSourceTerms(FluidData& fluidData)
 {
-	for (int n = startIndex; n <= endIndex; ++n) // Loop through all central cells
+	for (int n = m_StartIndex; n <= m_EndIndex; ++n) // Loop through all central cells
 	{
 		fluidData.Sm[n] = 0;
 		fluidData.Se[n] = 0;

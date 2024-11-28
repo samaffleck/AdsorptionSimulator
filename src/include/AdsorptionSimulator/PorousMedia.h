@@ -65,12 +65,12 @@ public:
     void setIsothermModel(const std::string& component, const DualSiteLangmuirIsothermParameters& ips);
     void setIsothermModel(const std::string& component);
     
-    void updateIsotherms(FluidData& fluidData, int startIndex, int endIndex);
-    void updateSourceTerms(FluidData& fluidData, int startIndex, int endIndex);
+    void updateIsotherms(FluidData& fluidData);
+    void updateSourceTerms(FluidData& fluidData);
 
-    void updateMoleFraction(int startIndex, int endIndex, const std::string& component, double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X);
-    void updatePressure(int startIndex, int endIndex, double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X);
-    void updateVelocity(int startIndex, int endIndex);
+    void updateMoleFraction(const std::string& component, double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X);
+    void updatePressure(double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X);
+    void updateVelocity();
 
     void setMassTransferCoefficient(const std::string& component, double ki);
     void setHeatOfAdsorption(const std::string& component, double Hads);
@@ -80,6 +80,8 @@ public:
 
     void setNumberOfCells(int numberOfCells);
     int getNumberOfCells() const;
+
+    void setStartEndIndex(int startIndex, int endIndex);
 
     double eb = 0.37;                   // Inter-particle bed voidage [m3/m3]
     double et = 0.65;                   // Intra-particle voidage [m3/m3]
@@ -103,5 +105,8 @@ private:
     double dx = L / numberOfCells;
     std::unordered_map<std::string, double> massTransferCoefficient{};          // Mass transfer coefficient [s]
     std::unordered_map<std::string, double> heatOfAdsorption{};        // Heat of adsorption [J/mol]
+
+    int m_StartIndex{};
+    int m_EndIndex{};
 
 };

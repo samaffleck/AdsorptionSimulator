@@ -96,6 +96,11 @@ void Reactor::resizeData()
         totalCells += layer.getNumberOfCells();
     }
 
+    Ae.resize(totalCells);
+    Aw.resize(totalCells);
+    Ap.resize(totalCells);
+    X.resize(totalCells);
+
     fluidData.resize(totalCells, fluid);
     fluidDataLastStep.resize(totalCells, fluid);
 }
@@ -177,6 +182,15 @@ void Reactor::initialise()
 {    
     resizeData();
 
+    // Set the start and end index for all of the layers
+    int startIndex = 1;
+    for(auto& [layerName, layer] : layers)
+    {
+        int endIndex = startIndex + layer.getNumberOfCells() - 1;
+        layer.setStartEndIndex(startIndex, endIndex);
+        startIndex = endIndex + 1;
+    }
+
     for (int n = 0; n < fluidData.P.size(); ++n)
     {
         fluidData.P[n] = initialCondition.P0;
@@ -198,23 +212,17 @@ void Reactor::initialise()
 
 void Reactor::updateIsotherms()
 {
-    int startIndex = 0;
     for (auto& [layerName, layer] : layers)
     {
-        int endIndex = startIndex + layer.getNumberOfCells() - 1;
-        layer.updateIsotherms(fluidData, startIndex, endIndex); // Updates qi_sat for all components at each cell in the layer
-        startIndex = endIndex++;
+        layer.updateIsotherms(fluidData); // Updates qi_sat for all components at each cell in the layer
     }
 }
 
 void Reactor::updateSourceTerms()
 {
-    int startIndex = 0;
     for (auto& [layerName, layer] : layers)
     {
-        int endIndex = startIndex + layer.getNumberOfCells() - 1;
-        layer.updateSourceTerms(fluidData, startIndex, endIndex); // Updates qi_sat for all components at each cell in the layer
-        startIndex = endIndex++;
+        layer.updateSourceTerms(fluidData); // Updates Smi for all components at each cell in the layer
     }
 }
 
@@ -260,11 +268,6 @@ void Reactor::updateFlowrates()
 
 void Reactor::updateMoleFraction(double dt)
 {
-    Eigen::VectorXd Ae(fluidData.C.size());
-	Eigen::VectorXd Aw(fluidData.C.size());
-	Eigen::VectorXd Ap(fluidData.C.size());
-	Eigen::VectorXd X(fluidData.C.size());
-
 	for (const auto& component : fluid.components)
 	{
         Ae.setZero();
@@ -272,12 +275,9 @@ void Reactor::updateMoleFraction(double dt)
         Ap.setZero();
         X.setZero();
 
-        int startIndex = 0;
-		for(auto& [layerName, layer] : layers)
+        for(auto& [layerName, layer] : layers)
         {
-            int endIndex = layer.getNumberOfCells() - 1;
-            layer.updateMoleFraction(startIndex, endIndex, component, dt, Ae, Aw, Ap, X);
-            startIndex = endIndex + 1;
+            layer.updateMoleFraction(component, dt, Ae, Aw, Ap, X);
         }
 
 		LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.Ci[component]);
@@ -285,13 +285,9 @@ void Reactor::updateMoleFraction(double dt)
 }
 
 void Reactor::updatePressure(double dt)
-{
-    int totalCells = fluidData.P.size();
-    Eigen::VectorXd Ae(totalCells);
-	Eigen::VectorXd Aw(totalCells);
-	Eigen::VectorXd Ap(totalCells);
-	Eigen::VectorXd X(totalCells);
-    
+{    
+    int totalCells = Ap.size();
+
     Ae.setZero();
     Aw.setZero();
     Ap.setZero();
@@ -301,12 +297,9 @@ void Reactor::updatePressure(double dt)
     Ap(n) = 1;
     X(n) = 1; // TODO: Inlet pressure
 
-    int startIndex = 0;
     for(auto& [layerName, layer] : layers)
     {
-        int endIndex = layer.getNumberOfCells() - 1;
-        layer.updatePressure(startIndex, endIndex, dt, Ae, Aw, Ap, X);
-        startIndex = endIndex + 1;
+        layer.updatePressure(dt, Ae, Aw, Ap, X);
     }
 
     n = totalCells - 1;
@@ -318,18 +311,16 @@ void Reactor::updatePressure(double dt)
 
 void Reactor::updateVelocity()
 {
-    int startIndex = 0;
     for(auto& [layerName, layer] : layers)
     {
-        int endIndex = layer.getNumberOfCells() - 1;
-        layer.updateVelocity(startIndex, endIndex);
-        startIndex = endIndex + 1;
+        layer.updateVelocity();
     }
 }
 
 void Reactor::integrate(double dt)
 {
-    updateBoundaryCells(); // Sets the inflow and outflow cells, as well as updating each layers interface
+    // Apply boundary conditions
+    updateBoundaryCells(); 
 
 	// Explicit equations
 	updateConstants();

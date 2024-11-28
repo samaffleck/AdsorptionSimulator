@@ -68,6 +68,12 @@ private:
 
 	double length{};
 
+	// Solver matrix elements
+	Eigen::VectorXd Ae{};
+	Eigen::VectorXd Aw{};
+	Eigen::VectorXd Ap{};
+	Eigen::VectorXd X{};
+
 private:
 	void addIsothermModel(const std::string& component);
 	void removeIsothermModel(const std::string& component);
