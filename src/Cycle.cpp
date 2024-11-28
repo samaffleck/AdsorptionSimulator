@@ -1,4 +1,6 @@
 #include "AdsorptionSimulator/Cycle.h"
+#include "AdsorptionSimulator/Fluid.h"
+#include "AdsorptionSimulator/Reactor.h"
 
 #include <stdexcept>
 #include <iostream>
@@ -20,10 +22,20 @@ void Cycle::run()
             while (elapsedTime < step.stepTime) 
             {
                 reactor.integrate(dt);
+                if(logData) logSimulationData();
                 elapsedTime += dt;
             }
         }
     }
+}
+
+void Cycle::logSimulationData()
+{
+    // Create all loggers
+    static FluidDataLogger fluidDataLogger;
+
+    // Log the data
+    fluidDataLogger.timeSeriesData.emplace_back(reactor.fluidData);
 }
 
 bool Cycle::performChecks() const
@@ -46,17 +58,17 @@ bool Cycle::performChecks() const
     return true;
 }
 
-void Cycle::addStep(const std::string& stepName)
+void Cycle::addStep(std::string stepName)
 {
     if (steps.find(stepName) != steps.end()) 
     {
         return;
     }
 
-    steps.try_emplace(stepName);
+    steps.emplace(stepName, Step());
 }
 
-void Cycle::removeStep(const std::string& stepName)
+void Cycle::removeStep(std::string stepName)
 {
     auto it = steps.find(stepName);
     if (it == steps.end()) 
@@ -67,7 +79,7 @@ void Cycle::removeStep(const std::string& stepName)
     steps.erase(it);
 }
 
-Step& Cycle::getStep(const std::string& stepName)
+Step& Cycle::getStep(std::string stepName)
 {
     auto it = steps.find(stepName);
     if (it == steps.end()) 

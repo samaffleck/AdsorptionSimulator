@@ -1,17 +1,18 @@
 #pragma once
 
-#include "BoundaryCondition.h"
-#include "Reactor.h"
+#include "AdsorptionSimulator/BoundaryCondition.h"
 
 #include <unordered_map>
-
+#include <string>
 
 struct Reactor;
+struct Inflow;
+struct Outflow;
 
 struct Step
 {
-	Inflow inflow;
-	Outflow outflow;
+	Inflow inflow{};
+	Outflow outflow{};
 	double stepTime = 100.0;	// [s]
 };
 
@@ -22,15 +23,17 @@ struct Cycle
 	void run();
 	bool performChecks() const;
 
-	void addStep(const std::string& stepName);
-	void removeStep(const std::string& stepName);
-	Step& getStep(const std::string& stepName);
+	void addStep(std::string stepName);
+	void removeStep(std::string stepName);
+	Step& getStep(std::string stepName);
 	
 	double dt = 0.1;				// Time step [s]
 	int numberOfCycles = 1;			// Number of cycles
+	bool logData = true;
 
 private:
 	void updateCycleTime();
+	void logSimulationData();
 
 private:
 	Reactor& reactor;
