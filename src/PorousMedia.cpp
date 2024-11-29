@@ -114,6 +114,12 @@ double PorousMedia::getCellWidth() const
 	return dx;
 }
 
+void PorousMedia::initialise(int startIndex, int endIndex)
+{
+	setStartEndIndex(startIndex, endIndex);
+	permeability = eb * eb * eb * dp * dp / (180 * (1 - eb) * (1 - eb));
+}
+
 void PorousMedia::setStartEndIndex(int startIndex, int endIndex)
 {
 	m_StartIndex = startIndex;

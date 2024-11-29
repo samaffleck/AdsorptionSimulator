@@ -46,7 +46,7 @@ public:
 
     double getCellWidth() const;
 
-    void setStartEndIndex(int startIndex, int endIndex);
+    void initialise(int startIndex, int endIndex);
 
     double eb = 0.37;                   // Inter-particle bed voidage [m3/m3]
     double et = 0.65;                   // Intra-particle voidage [m3/m3]
@@ -70,8 +70,10 @@ private:
     double dx = L / numberOfCells;
     std::unordered_map<std::string, double> massTransferCoefficient{};          // Mass transfer coefficient [s]
     std::unordered_map<std::string, double> heatOfAdsorption{};        // Heat of adsorption [J/mol]
-
     int m_StartIndex{};
     int m_EndIndex{};
+
+private:
+    void setStartEndIndex(int startIndex, int endIndex);
 
 };

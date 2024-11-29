@@ -48,6 +48,8 @@ public:
 	void integrate(double dt);
 
 	void resizeData();
+
+	bool performChecks() const;
 	
 	Wall wall{};
 	

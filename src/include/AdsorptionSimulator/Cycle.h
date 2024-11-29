@@ -35,6 +35,7 @@ struct Cycle
 private:
 	void updateCycleTime();
 	void logSimulationData();
+	void runCycle();
 
 private:
 	Reactor& reactor;

@@ -13,24 +13,31 @@ void Cycle::run()
     for (int cycleNumber = 0; cycleNumber < numberOfCycles; ++cycleNumber) 
     {
         std::cout << "Running cycle " << cycleNumber + 1 << " of " << numberOfCycles << std::endl;
-
-        for (const auto& [stepName, step] : steps) 
-        {
-            std::cout << "Executing step: " << stepName << std::endl;
-
-            reactor.setBoundaryConditions(step);
-
-            double elapsedTime = 0.0;
-            while (elapsedTime < step.stepTime) 
-            {
-                reactor.integrate(dt);
-                if(logData) logSimulationData();
-                elapsedTime += dt;
-            }
-        }
+        runCycle();
     }
 
+    std::cout << "Simulation Finished!";
+
     if (logData) fluidDataLogger.saveDataToCSV("C:/Users/samaf/OneDrive/Desktop/AdsResults");
+}
+
+void Cycle::runCycle()
+{
+    for (const auto& [stepName, step] : steps)
+    {
+        std::cout << "Executing step: " << stepName << std::endl;
+
+        reactor.setBoundaryConditions(step);
+
+        double elapsedTime = 0.0;
+        while (elapsedTime < step.stepTime)
+        {
+            reactor.integrate(dt);
+            if (logData) logSimulationData();
+            elapsedTime += dt;
+            std::cout << "Time: " << elapsedTime << " [s]\n";
+        }
+    }
 }
 
 void Cycle::logSimulationData()
@@ -41,6 +48,11 @@ void Cycle::logSimulationData()
 
 bool Cycle::performChecks() const
 {
+    if (!reactor.performChecks())
+    {
+        return false;
+    }
+
     if (steps.empty()) 
     {
         std::cerr << "Cycle check failed: No steps defined." << std::endl;

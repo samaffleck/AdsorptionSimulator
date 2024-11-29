@@ -105,6 +105,16 @@ void Reactor::resizeData()
     fluidDataLastStep.resize(totalCells, fluid);
 }
 
+bool Reactor::performChecks() const
+{
+    if (layers.empty())
+    {
+        return false;
+    }
+
+    return true;
+}
+
 void Reactor::updateBoundaryCells()
 {
     // Get inflow and outflow index. Index = 0 = BOTTOM, Index = N = TOP
@@ -166,7 +176,7 @@ void Reactor::initialise()
     for(auto& [layerName, layer] : layers)
     {
         int endIndex = startIndex + layer.getNumberOfCells() - 1;
-        layer.setStartEndIndex(startIndex, endIndex);
+        layer.initialise(startIndex, endIndex);
         startIndex = endIndex + 1;
     }
 
