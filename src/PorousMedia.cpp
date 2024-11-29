@@ -141,13 +141,13 @@ void PorousMedia::updateMoleFraction(const std::string &component, double dt, Ei
 void PorousMedia::updatePressure(double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X)
 {
     // Constants
-    double D = permeability / (reactor.fluidData.vis[0] / reactor.fluidData.rho[0]);   // Diffusivity
+    double D = permeability / reactor.fluidData.vis[0];   // Diffusivity
     double S = eb * compressibility;                 						// Storage coefficient
     double alpha = S * dx * dx / dt;        								// Coefficient for time discretization
 	
     for (int i = m_StartIndex; i <= m_EndIndex; ++i)
     {
-		D = k / (reactor.fluidData.vis[i] / reactor.fluidData.rho[i]);
+		D = k / reactor.fluidData.vis[i];
 
         Aw(i) = -D;
         Ae(i) = -D;
