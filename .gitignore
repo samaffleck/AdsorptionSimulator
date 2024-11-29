@@ -35,6 +35,7 @@
 
 # Visual Studio
 .vs
+.vscode
 
 #Build
 build
