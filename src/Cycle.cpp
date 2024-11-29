@@ -8,6 +8,8 @@
 
 void Cycle::run()
 {
+    reactor.initialise();
+
     for (int cycleNumber = 0; cycleNumber < numberOfCycles; ++cycleNumber) 
     {
         std::cout << "Running cycle " << cycleNumber + 1 << " of " << numberOfCycles << std::endl;

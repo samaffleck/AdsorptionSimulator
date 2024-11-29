@@ -28,7 +28,7 @@ int main()
 
     system.getAdsorbent("13X").setNumberOfCells(10);
 
-    system.getReactor().initialCondition.P0 = 1e5;
+    system.getReactor().initialCondition.P0 = 101325;
     system.getReactor().initialCondition.T0 = 298;
     system.getReactor().initialCondition.yi0["Oxygen"] = 0.0;
     system.getReactor().initialCondition.yi0["Nitrogen"] = 1.0;

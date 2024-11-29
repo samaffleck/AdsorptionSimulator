@@ -109,7 +109,11 @@ void Reactor::updateBoundaryCells()
 {
     // Get inflow and outflow index. Index = 0 = BOTTOM, Index = N = TOP
     int inIndex = 0;
+    PorousMedia* inLayer = &layers.begin()->second;
+
     int outIndex = 0;
+    PorousMedia* outLayer = &std::prev(layers.end())->second;
+
     int di = 1;
 
     if (inflow.location == BoundaryConditionLocation::BOTTOM)
@@ -121,13 +125,15 @@ void Reactor::updateBoundaryCells()
     {
         inIndex = int(fluidData.C.size()) - 1;
         outIndex = 0;
+        inLayer = &layers.end()->second;
+        outLayer = &layers.begin()->second;
         di = -1;
     }
 
     // Set the inflow conditions
     fluidData.u[inIndex] = inflow.u_in;
     fluidData.T[inIndex] = 2 * inflow.T_in - fluidData.T[1];
-    fluidData.P[inIndex] = fluidData.P[inIndex + di]; // No pressure drop in the first hald cell
+    fluidData.P[inIndex] = fluidData.vis[inIndex] * inflow.u_in * inLayer->getCellWidth() / inLayer->permeability + fluidData.P[inIndex + di];
     fluidData.C[inIndex] = fluidData.P[inIndex] / (8.314 * fluidData.T[inIndex]);
     for (const auto& component : fluid.components)
     {
@@ -135,33 +141,6 @@ void Reactor::updateBoundaryCells()
         fluidData.Ci[component][inIndex] = 2 * inflow.y_in[component] * fluidData.P[inIndex + di] / (8.314 * inflow.T_in) - fluidData.Ci[component][inIndex + di];
     }
     
-    // Stitch the interlayers
-    for (auto itt = layers.begin(); itt != layers.end(); ++itt)
-    {
-        auto nextItt = std::next(itt);
-        if (nextItt != layers.end())
-        {
-            auto& layer = itt->second;
-            auto& nextLayer = nextItt->second;
-            
-            // TODO: what if flow is top down?
-            fluidData.u[0] = fluidData.u[fluidData.u.size() - 1];
-            fluidData.C[0] = fluidData.C[fluidData.C.size() - 2];
-            fluidData.T[0] = fluidData.T[fluidData.T.size() - 2];
-            fluidData.C[fluidData.C.size() - 1] = fluidData.C[1];
-            fluidData.T[fluidData.T.size() - 1] = fluidData.T[1];
-        
-            for (const auto& component : fluid.components)
-            {
-                fluidData.Ci[component][0] = fluidData.Ci[component][fluidData.C.size() - 2];
-                fluidData.yi[component][0] = fluidData.yi[component][fluidData.C.size() - 2];
-
-                fluidData.Ci[component][fluidData.C.size() - 1] = fluidData.Ci[component][1];
-                fluidData.yi[component][fluidData.C.size() - 1] = fluidData.yi[component][1];
-            }
-        }
-    }
-
     // Outflow boundary conditions
     fluidData.T[outIndex] = fluidData.T[outIndex - di];
     fluidData.C[outIndex] = fluidData.C[outIndex - di];
@@ -191,11 +170,15 @@ void Reactor::initialise()
         startIndex = endIndex + 1;
     }
 
+    for (int n = 0; n < fluidData.u.size(); ++n)
+    {
+        fluidData.u[n] = initialCondition.u0;
+    }
+
     for (int n = 0; n < fluidData.P.size(); ++n)
     {
         fluidData.P[n] = initialCondition.P0;
         fluidData.T[n] = initialCondition.T0;
-        fluidData.u[n] = initialCondition.u0;
         fluidData.C[n] = initialCondition.P0 / (8.314 * initialCondition.T0);
 
         for (const auto& component : fluid.components)
@@ -206,8 +189,10 @@ void Reactor::initialise()
     }
 
     updateIsotherms();
+    updateConstants();
 
     fluidData.qi = fluidData.qi_sat;
+    fluidDataLastStep = fluidData;
 }
 
 void Reactor::updateIsotherms()
@@ -268,6 +253,8 @@ void Reactor::updateFlowrates()
 
 void Reactor::updateMoleFraction(double dt)
 {
+    int totalCells = Ap.size();
+
 	for (const auto& component : fluid.components)
 	{
         Ae.setZero();
@@ -275,10 +262,20 @@ void Reactor::updateMoleFraction(double dt)
         Ap.setZero();
         X.setZero();
 
+        // Inlet ghost cell
+        int n = 0;
+        Ap(n) = 1;
+        X(n) = fluidData.Ci[component][n];
+
+        // Internal nodes
         for(auto& [layerName, layer] : layers)
         {
             layer.updateMoleFraction(component, dt, Ae, Aw, Ap, X);
         }
+
+        n = totalCells - 1;
+        Ap(n) = 1;
+        X(n) = fluidData.Ci[component][n];
 
 		LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.Ci[component]);
 	}
@@ -295,7 +292,7 @@ void Reactor::updatePressure(double dt)
 
     int n = 0;
     Ap(n) = 1;
-    X(n) = 1; // TODO: Inlet pressure
+    X(n) = fluidData.P[n]; 
 
     for(auto& [layerName, layer] : layers)
     {
@@ -304,7 +301,7 @@ void Reactor::updatePressure(double dt)
 
     n = totalCells - 1;
     Ap(n) = 1;
-    X(n) = 1; // TODO: Outlet pressure
+    X(n) = fluidData.P[n];
 
     LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.P);
 }
@@ -323,10 +320,10 @@ void Reactor::integrate(double dt)
     updateBoundaryCells(); 
 
 	// Explicit equations
-	updateConstants();
+	//updateConstants();
 	updateFlowrates();
-	updateIsotherms();
-	updateSourceTerms();
+	//updateIsotherms();
+	//updateSourceTerms();
     dispersionModel->update(fluidData);
 
 	// Implicit equations

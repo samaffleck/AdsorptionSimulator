@@ -44,6 +44,8 @@ public:
     void setNumberOfCells(int numberOfCells);
     int getNumberOfCells() const;
 
+    double getCellWidth() const;
+
     void setStartEndIndex(int startIndex, int endIndex);
 
     double eb = 0.37;                   // Inter-particle bed voidage [m3/m3]
@@ -54,8 +56,8 @@ public:
     double dp = 1e-3;                   // Particle diameter [m]
     double poreDiameter = 1e-6;         // Pore diameter [m]
     double tau = 0.1;                   // Macropore Void Fraction / tortuosity
-    double permeability = 1;
-    double compressibility = 1;
+    double permeability = 4e-9;         // [1/m2]
+    double compressibility = 9.87e-6;   // [1/Pa]
 
     std::string name = "Default Solid";
 

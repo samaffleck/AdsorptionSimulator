@@ -109,6 +109,11 @@ int PorousMedia::getNumberOfCells() const
 	return numberOfCells;
 }
 
+double PorousMedia::getCellWidth() const
+{
+	return dx;
+}
+
 void PorousMedia::setStartEndIndex(int startIndex, int endIndex)
 {
 	m_StartIndex = startIndex;
@@ -155,10 +160,9 @@ void PorousMedia::updateVelocity()
 {
 	for (int n = m_StartIndex; n <= m_EndIndex; ++n)
 	{
-        reactor.fluidData.u[n] = - (permeability / (reactor.fluidData.vis[0] / reactor.fluidData.rho[0])) * (reactor.fluidData.P[n + 1] - reactor.fluidData.P[n]) / dx;
+        reactor.fluidData.u[n] = - (permeability / reactor.fluidData.vis[n]) * (reactor.fluidData.P[n + 1] - reactor.fluidData.P[n]) / dx;
 	}
 }
-
 
 void PorousMedia::updateIsotherms(FluidData& fluidData)
 {
