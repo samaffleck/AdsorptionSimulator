@@ -29,13 +29,12 @@ void Cycle::run()
             }
         }
     }
+
+    if (logData) fluidDataLogger.saveDataToCSV("C:/Users/samaf/OneDrive/Desktop/AdsResults");
 }
 
 void Cycle::logSimulationData()
 {
-    // Create all loggers
-    static FluidDataLogger fluidDataLogger;
-
     // Log the data
     fluidDataLogger.timeSeriesData.emplace_back(reactor.fluidData);
 }

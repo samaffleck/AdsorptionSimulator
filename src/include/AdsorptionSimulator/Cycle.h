@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AdsorptionSimulator/BoundaryCondition.h"
+#include "AdsorptionSimulator/Fluid.h"
 
 #include <unordered_map>
 #include <string>
@@ -39,5 +40,6 @@ private:
 	Reactor& reactor;
 	std::unordered_map<std::string, Step> steps;
 	double cycleTime{};
+	FluidDataLogger fluidDataLogger;
 
 };

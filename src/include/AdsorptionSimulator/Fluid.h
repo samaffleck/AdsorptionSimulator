@@ -32,8 +32,8 @@ public:
     std::vector<std::string> components = {};
 
 private:
-    bool isComponentInList(const std::string& componentName);
-    bool isComponentValid(const std::string& componentName);
+    bool isComponentInList(const std::string& componentName) const;
+    bool isComponentValid(const std::string& componentName) const;
 
 };
 
@@ -79,4 +79,10 @@ struct FluidData
 struct FluidDataLogger
 {
     std::vector<FluidData> timeSeriesData{}; 
+
+    void saveDataToCSV(const std::string& fileDirectory) const;
+
+private:
+    void FluidDataLogger::logVariableToFile(const Eigen::VectorXd& variable, std::ofstream& variableFile) const;
+
 };
