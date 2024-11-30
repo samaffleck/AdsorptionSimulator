@@ -15,10 +15,10 @@ int main()
     system.getReactor().addLayer("AA");
     system.getReactor().addLayer("13X");
     
-    system.getReactor().getLayer("AA").setLayerLength(0.25);
+    system.getReactor().getLayer("AA").setLayerLength(0.50);
     system.getReactor().getLayer("AA").dp = 0.0035;
-    system.getReactor().getLayer("13X").setLayerLength(0.45);
-    system.getReactor().getLayer("13X").dp = 0.0021;
+    system.getReactor().getLayer("13X").setLayerLength(0.20);
+    system.getReactor().getLayer("13X").dp = 0.0035;
 
     system.getAdsorbent("13X").setIsothermModel("Oxygen", LangmuirIsothermParameters({2, 3, 4}));
     system.getAdsorbent("13X").setIsothermModel("Nitrogen", HenryIsothermParameters({0, 1}));
@@ -29,6 +29,7 @@ int main()
     system.getReactor().setDispersionModel(0);
 
     system.getAdsorbent("13X").setNumberOfCells(10);
+    system.getAdsorbent("AA").setNumberOfCells(10);
 
     system.getReactor().initialCondition.P0 = 101325;
     system.getReactor().initialCondition.T0 = 298;

@@ -63,8 +63,8 @@ public:
 private:
 	Fluid& fluid;
 	
-	std::unordered_map<std::string, PorousMedia> layers{};
-	
+	PorousLayers layers{};
+
 	Inflow inflow{};
 	Outflow outflow{};
 

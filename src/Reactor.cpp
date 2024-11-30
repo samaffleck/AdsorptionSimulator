@@ -15,11 +15,7 @@ Reactor::Reactor(Fluid &fluid) : fluid(fluid)
 
 void Reactor::addLayer(const std::string &layerName)
 {
-    if (layers.find(layerName) != layers.end()) 
-    {
-        throw std::runtime_error("Layer with name '" + layerName + "' already exists.");
-    }
-    layers.emplace(layerName, PorousMedia(fluid, *this));
+    layers.m_Layers.emplace_back(std::make_unique<PorousMedia>(layerName, &fluid, this));
     
     updateLength();
     resizeData();
@@ -27,12 +23,7 @@ void Reactor::addLayer(const std::string &layerName)
 
 void Reactor::removeLayer(const std::string& layerName)
 {
-    auto it = layers.find(layerName);
-    if (it == layers.end()) 
-    {
-        throw std::runtime_error("Layer with name '" + layerName + "' does not exist.");
-    }
-    layers.erase(it);
+    layers.remove(layerName);
 
     updateLength();
     resizeData();
@@ -40,20 +31,15 @@ void Reactor::removeLayer(const std::string& layerName)
 
 PorousMedia& Reactor::getLayer(const std::string& layerName)
 {
-    auto it = layers.find(layerName);
-    if (it == layers.end()) 
-    {
-        throw std::runtime_error("Layer with name '" + layerName + "' not found.");
-    }
-    return it->second;
+    return *layers.getLayer(layerName);
 }
 
 void Reactor::updateLength()
 {
     length = 0.0;
-    for (const auto& [layerName, layer]: layers) 
+    for (const auto& layer : layers.m_Layers) 
     {
-        length += layer.getLayerLength(); 
+        length += layer->getLayerLength(); 
     }
 }
 
@@ -73,17 +59,17 @@ void Reactor::removeComponent(const std::string& component)
 
 void Reactor::addIsothermModel(const std::string& component)
 {
-    for (auto& [layerName, layer] : layers)
+    for (auto& layer : layers.m_Layers)
     {
-        layer.addIsothermModel(component);
+        layer->addIsothermModel(component);
     }
 }
 
 void Reactor::removeIsothermModel(const std::string& component)
 {
-    for (auto& [layerName, layer] : layers)
+    for (auto& layer : layers.m_Layers)
     {
-        layer.removeIsothermModel(component);
+        layer->removeIsothermModel(component);
     }
 }
 
@@ -91,9 +77,9 @@ void Reactor::resizeData()
 {
     int totalCells = 2; 
 
-    for (auto& [layerName, layer] : layers)
+    for (auto& layer : layers.m_Layers)
     {
-        totalCells += layer.getNumberOfCells();
+        totalCells += layer->getNumberOfCells();
     }
 
     Ae.resize(totalCells);
@@ -107,7 +93,7 @@ void Reactor::resizeData()
 
 bool Reactor::performChecks() const
 {
-    if (layers.empty())
+    if (layers.m_Layers.empty())
     {
         return false;
     }
@@ -119,10 +105,10 @@ void Reactor::updateBoundaryCells()
 {
     // Get inflow and outflow index. Index = 0 = BOTTOM, Index = N = TOP
     int inIndex = 0;
-    PorousMedia* inLayer = &layers.begin()->second;
+    PorousMedia* inLayer = layers.m_Layers[0].get();;
 
     int outIndex = 0;
-    PorousMedia* outLayer = &std::prev(layers.end())->second;
+    PorousMedia* outLayer = layers.m_Layers[layers.m_Layers.size() - 1].get();
 
     int di = 1;
 
@@ -135,8 +121,8 @@ void Reactor::updateBoundaryCells()
     {
         inIndex = int(fluidData.C.size()) - 1;
         outIndex = 0;
-        inLayer = &layers.end()->second;
-        outLayer = &layers.begin()->second;
+        inLayer = layers.m_Layers[layers.m_Layers.size() - 1].get();
+        outLayer = layers.m_Layers[0].get();
         di = -1;
     }
 
@@ -173,10 +159,10 @@ void Reactor::initialise()
 
     // Set the start and end index for all of the layers
     int startIndex = 1;
-    for(auto& [layerName, layer] : layers)
+    for(auto& layer : layers.m_Layers)
     {
-        int endIndex = startIndex + layer.getNumberOfCells() - 1;
-        layer.initialise(startIndex, endIndex);
+        int endIndex = startIndex + layer->getNumberOfCells() - 1;
+        layer->initialise(startIndex, endIndex);
         startIndex = endIndex + 1;
     }
 
@@ -207,17 +193,17 @@ void Reactor::initialise()
 
 void Reactor::updateIsotherms()
 {
-    for (auto& [layerName, layer] : layers)
+    for (auto& layer : layers.m_Layers)
     {
-        layer.updateIsotherms(fluidData); // Updates qi_sat for all components at each cell in the layer
+        layer->updateIsotherms(fluidData); // Updates qi_sat for all components at each cell in the layer
     }
 }
 
 void Reactor::updateSourceTerms()
 {
-    for (auto& [layerName, layer] : layers)
+    for (auto& layer : layers.m_Layers)
     {
-        layer.updateSourceTerms(fluidData); // Updates Smi for all components at each cell in the layer
+        layer->updateSourceTerms(fluidData); // Updates Smi for all components at each cell in the layer
     }
 }
 
@@ -278,9 +264,9 @@ void Reactor::updateMoleFraction(double dt)
         X(n) = fluidData.Ci[component][n];
 
         // Internal nodes
-        for(auto& [layerName, layer] : layers)
+        for(auto& layer : layers.m_Layers)
         {
-            layer.updateMoleFraction(component, dt, Ae, Aw, Ap, X);
+            layer->updateMoleFraction(component, dt, Ae, Aw, Ap, X);
         }
 
         n = totalCells - 1;
@@ -304,9 +290,9 @@ void Reactor::updatePressure(double dt)
     Ap(n) = 1;
     X(n) = fluidData.P[n]; 
 
-    for(auto& [layerName, layer] : layers)
+    for(auto& layer : layers.m_Layers)
     {
-        layer.updatePressure(dt, Ae, Aw, Ap, X);
+        layer->updatePressure(dt, Ae, Aw, Ap, X);
     }
 
     n = totalCells - 1;
@@ -318,9 +304,9 @@ void Reactor::updatePressure(double dt)
 
 void Reactor::updateVelocity()
 {
-    for(auto& [layerName, layer] : layers)
+    for(auto& layer : layers.m_Layers)
     {
-        layer.updateVelocity();
+        layer->updateVelocity();
     }
 }
 

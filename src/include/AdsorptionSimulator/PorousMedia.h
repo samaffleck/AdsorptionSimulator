@@ -18,7 +18,7 @@ struct FluidData;
 struct PorousMedia
 {
 public:
-    PorousMedia(Fluid& fluid, Reactor& reactor) : fluid(fluid), reactor(reactor) {}
+    PorousMedia(std::string name, Fluid* fluid, Reactor* reactor) : name(name), fluid(fluid), reactor(reactor) {}
 
     void addIsothermModel(const std::string& component);
     void removeIsothermModel(const std::string& component);
@@ -52,18 +52,17 @@ public:
     double et = 0.65;                   // Intra-particle voidage [m3/m3]
     double density = 1200.0;            // Solid density [kg/m3]
     double Cp = 500.0;                  // Specific heat capacity [J/(kg-K)]
-    double k = 0.5;                     // Thermal conductivity [W/(m-K)]
+    double thermalConductivity = 0.5;   // Thermal conductivity [W/(m-K)]
     double dp = 1e-3;                   // Particle diameter [m]
     double poreDiameter = 1e-6;         // Pore diameter [m]
     double tau = 0.1;                   // Macropore Void Fraction / tortuosity
     double permeability = 4e-9;         // [1/m2]
-    double compressibility = 9.87e-6;   // [1/Pa]
 
     std::string name = "Default Solid";
 
 private:
-    Fluid& fluid;
-    Reactor& reactor;
+    Fluid* fluid;
+    Reactor* reactor;
     std::unordered_map<IsothermType, IsothermModel> isothermModels = {};  // Stores an isotherm model for each isotherm type
     int numberOfCells = 20;
     double L = 1.0;                             // Length of porous media domain [m]
@@ -76,4 +75,12 @@ private:
 private:
     void setStartEndIndex(int startIndex, int endIndex);
 
+};
+
+struct PorousLayers
+{
+    std::vector<std::unique_ptr<PorousMedia>> m_Layers{};
+
+    void remove(std::string);
+    PorousMedia* getLayer(const std::string& layerName);
 };

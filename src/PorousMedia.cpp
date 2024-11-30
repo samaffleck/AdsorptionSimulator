@@ -89,7 +89,7 @@ void PorousMedia::setHeatOfAdsorption(const std::string& component, double Hads)
 void PorousMedia::setLayerLength(double length) 
 {
 	L = length;
-	reactor.updateLength();
+	reactor->updateLength();
 }
 
 double PorousMedia::getLayerLength() const
@@ -101,7 +101,7 @@ void PorousMedia::setNumberOfCells(int numberOfCells_)
 {
 	numberOfCells = numberOfCells_;
 	dx = L / numberOfCells;
-	reactor.resizeData();
+	reactor->resizeData();
 }
 
 int PorousMedia::getNumberOfCells() const
@@ -134,39 +134,39 @@ void PorousMedia::updateMoleFraction(const std::string &component, double dt, Ei
 	
 	for (int n = m_StartIndex; n <= m_EndIndex; ++n)
 	{
-		de = eb * 0.5 * (reactor.fluidData.Dl[n] + reactor.fluidData.Dl[n + 1]) / dx;
-		dw = eb * 0.5 * (reactor.fluidData.Dl[n] + reactor.fluidData.Dl[n - 1]) / dx;
+		de = eb * 0.5 * (reactor->fluidData.Dl[n] + reactor->fluidData.Dl[n + 1]) / dx;
+		dw = eb * 0.5 * (reactor->fluidData.Dl[n] + reactor->fluidData.Dl[n - 1]) / dx;
 
-		Aw[n] = -dw - std::max(reactor.fluidData.u[n - 1], 0.0);
-		Ae[n] = -de - std::max(-reactor.fluidData.u[n], 0.0);
-		Ap[n] = alpha + std::max(reactor.fluidData.u[n], 0.0) + std::max(-reactor.fluidData.u[n - 1], 0.0) + de + dw;
-		X[n] = alpha * reactor.fluidDataLastStep.Ci[component][n] + density * eb * reactor.fluidData.Smi[component][n] * dx;
+		Aw[n] = -dw - std::max(reactor->fluidData.u[n - 1], 0.0);
+		Ae[n] = -de - std::max(-reactor->fluidData.u[n], 0.0);
+		Ap[n] = alpha + std::max(reactor->fluidData.u[n], 0.0) + std::max(-reactor->fluidData.u[n - 1], 0.0) + de + dw;
+		X[n] = alpha * reactor->fluidDataLastStep.Ci[component][n] + density * eb * reactor->fluidData.Smi[component][n] * dx;
 	}
 }
 
 void PorousMedia::updatePressure(double dt, Eigen::VectorXd& Ae, Eigen::VectorXd& Aw, Eigen::VectorXd& Ap, Eigen::VectorXd& X)
 {
     // Constants
-    double D = permeability / reactor.fluidData.vis[0];   // Diffusivity
-    double S = eb * compressibility;                 						// Storage coefficient
-    double alpha = S * dx * dx / dt;        								// Coefficient for time discretization
+	double D = (permeability * reactor->fluidDataLastStep.P[0]) / (reactor->fluidData.vis[0] * dx);	// Diffusivity
+    double alpha = eb * dx / dt;        															// Coefficient for time discretization
 	
     for (int i = m_StartIndex; i <= m_EndIndex; ++i)
     {
-		D = k / reactor.fluidData.vis[i];
+		D = (permeability * reactor->fluidDataLastStep.P[i]) / (reactor->fluidData.vis[i] * dx);
 
         Aw(i) = -D;
         Ae(i) = -D;
         Ap(i) = 2 * D + alpha;
-        X(i) = alpha * reactor.fluidDataLastStep.P(i);
+        X(i) = alpha * reactor->fluidDataLastStep.P(i) + dx * 8.314 * reactor->fluidData.T[i] * reactor->fluidData.Sm[i];
     }
 }
 
 void PorousMedia::updateVelocity()
 {
-	for (int n = m_StartIndex; n <= m_EndIndex; ++n)
+	for (int n = m_StartIndex; n <= m_EndIndex + 1; ++n)
 	{
-        reactor.fluidData.u[n] = - (permeability / reactor.fluidData.vis[n]) * (reactor.fluidData.P[n + 1] - reactor.fluidData.P[n]) / dx;
+        //reactor.fluidData.u[n] = - (permeability / reactor.fluidData.vis[n]) * (reactor.fluidData.P[n + 1] - reactor.fluidData.P[n]) / dx;
+        reactor->fluidData.u[n - 1] = - (permeability / reactor->fluidData.vis[n]) * (reactor->fluidData.P[n] - reactor->fluidData.P[n - 1]) / dx;
 	}
 }
 
@@ -184,7 +184,7 @@ void PorousMedia::updateSourceTerms(FluidData& fluidData)
 	{
 		fluidData.Sm[n] = 0;
 		fluidData.Se[n] = 0;
-		for (const auto& component : fluid.components) // Sub-Component list
+		for (const auto& component : fluid->components) // Sub-Component list
 		{
 			fluidData.Smi[component][n] = massTransferCoefficient[component] * (fluidData.qi_sat[component][n] - fluidData.qi[component][n]);
 			fluidData.Sei[component][n] = fluidData.Smi[component][n] * heatOfAdsorption[component];
@@ -194,80 +194,27 @@ void PorousMedia::updateSourceTerms(FluidData& fluidData)
 	}
 }
 
-void FluidData::resize(int sizeOfVectors, const Fluid& fluid)
+void PorousLayers::remove(std::string name)
 {
-	rho.resize(sizeOfVectors);
-	rho.setConstant(0.);
-	C.resize(sizeOfVectors);
-	C.setConstant(0.);
-	T.resize(sizeOfVectors);
-	T.setConstant(0.);
-	P.resize(sizeOfVectors);
-	P.setConstant(0.);
-	Sm.resize(sizeOfVectors);
-	Sm.setConstant(0.);
-	Se.resize(sizeOfVectors);
-	Se.setConstant(0.);
-	Yt.resize(sizeOfVectors);
-	Yt.setConstant(0.);
-	vis.resize(sizeOfVectors);
-	vis.setConstant(0.);
-	Cp.resize(sizeOfVectors);
-	Cp.setConstant(0.);
-	Cp_ads.resize(sizeOfVectors);
-	Cp_ads.setConstant(0.);
-	k.resize(sizeOfVectors);
-	k.setConstant(0.);
-	Dl.resize(sizeOfVectors);
-	Dl.setConstant(0.);
-	Lam.resize(sizeOfVectors);
-	Lam.setConstant(0.);
-	h_gw.resize(sizeOfVectors);
-	h_gw.setConstant(0.);
-	h_wa.resize(sizeOfVectors);
-	h_wa.setConstant(0.);
-	Re.resize(sizeOfVectors);
-	Re.setConstant(0.);
-	Sc.resize(sizeOfVectors);
-	Sc.setConstant(0.);
-	Pr.resize(sizeOfVectors);
-	Pr.setConstant(0.);
+	auto it = std::remove_if(m_Layers.begin(), m_Layers.end(),
+		[&name](const std::unique_ptr<PorousMedia>& layer) {
+		return layer->name == name;
+	});
 
-	// Staggered grid is used for velocity, so 1 less cell is needed
-	u.resize(sizeOfVectors - 1);
-	u.setConstant(0.);
-	massFlow.resize(sizeOfVectors - 1);
-	massFlow.setConstant(0.);
-	molarFlow.resize(sizeOfVectors - 1);
-	molarFlow.setConstant(0.);
-	volumeFlow.resize(sizeOfVectors - 1);
-	volumeFlow.setConstant(0.);
-
-	// Component parameters
-	yi.clear();
-	Ci.clear();
-	qi.clear();
-	qi_sat.clear();
-	Smi.clear();
-	Sei.clear();
-	for (const auto& component : fluid.components)
-	{
-		yi[component].resize(sizeOfVectors);
-		yi[component].setConstant(0.);
-
-		Ci[component].resize(sizeOfVectors);
-		Ci[component].setConstant(0.);
-
-		qi[component].resize(sizeOfVectors);
-		qi[component].setConstant(0.);
-
-		qi_sat[component].resize(sizeOfVectors);
-		qi_sat[component].setConstant(0.);
-
-		Smi[component].resize(sizeOfVectors);
-		Smi[component].setConstant(0.);
-
-		Sei[component].resize(sizeOfVectors);
-		Sei[component].setConstant(0.);
+	if (it != m_Layers.end()) {
+		m_Layers.erase(it, m_Layers.end());
 	}
+}
+
+PorousMedia* PorousLayers::getLayer(const std::string& layerName)
+{
+	auto it = std::find_if(m_Layers.begin(), m_Layers.end(),
+		[&layerName](const std::unique_ptr<PorousMedia>& layer) {
+		return layer->name == layerName;
+	});
+
+	if (it != m_Layers.end()) {
+		return it->get();
+	}
+	throw std::invalid_argument("Layer with the specified name does not exist.");
 }
