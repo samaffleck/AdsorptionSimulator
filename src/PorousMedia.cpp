@@ -150,7 +150,7 @@ void PorousMedia::updatePressure(double dt, Eigen::VectorXd& Ae, Eigen::VectorXd
 	double D = (permeability * reactor->fluidDataLastStep.P[0]) / (reactor->fluidData.vis[0] * dx);	// Diffusivity
     double alpha = eb * dx / dt;        															// Coefficient for time discretization
 	
-    for (int i = m_StartIndex; i <= m_EndIndex; ++i)
+    for (int i = m_StartIndex + 1; i < m_EndIndex; ++i) // Interior nodes
     {
 		D = (permeability * reactor->fluidDataLastStep.P[i]) / (reactor->fluidData.vis[i] * dx);
 

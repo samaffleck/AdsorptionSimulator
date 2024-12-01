@@ -286,13 +286,63 @@ void Reactor::updatePressure(double dt)
     Ap.setZero();
     X.setZero();
 
+    double alpha = 0;
+    double R0 = 0;
+    double R1 = 0;
+    double R2 = 0;
+    double R01 = 0;
+    double R12 = 0;
+    double dx0 = 0;
+    double dx1 = 0;
+    double dx2 = 0;
+
     int n = 0;
     Ap(n) = 1;
     X(n) = fluidData.P[n]; 
 
-    for(auto& layer : layers.m_Layers)
+    for (int l = 0; l < layers.m_Layers.size(); ++l)
     {
+        PorousMedia* layer = layers.m_Layers[l].get();
+        const PorousMedia* nextLayer = layer;
+        const PorousMedia* previousLayer = layer;
+        if (l < layers.m_Layers.size() - 1)
+        {
+            nextLayer = layers.m_Layers[l + 1].get();
+        }
+        if (l > 0)
+        {
+            previousLayer = layers.m_Layers[l - 1].get();
+        }
+
+        // First cell of the layer
+        n = n + 1;
+        dx0 = previousLayer->getCellWidth();
+        dx1 = layer->getCellWidth();
+        dx2 = nextLayer->getCellWidth();
+        R0 = previousLayer->permeability / (dx0 * fluidData.vis[n]);
+        R1 = layer->permeability / (dx1 * fluidData.vis[n]);
+        R01 = R0 * R1 / (R0 + R1);
+        alpha = layer->eb * dx1 / dt;
+
+        Aw(n) = -2 * fluidDataLastStep.P[n] * R01;
+        Ae(n) = -fluidDataLastStep.P[n] * R1;
+        Ap(n) = 2 * fluidDataLastStep.P[n] * R01 + fluidDataLastStep.P[n] * R1 + alpha;
+        X(n) = alpha * fluidDataLastStep.P(n) + dx1 * 8.314 * fluidData.T[n] * fluidData.Sm[n];
+
+        // Update interior nodes
         layer->updatePressure(dt, Ae, Aw, Ap, X);
+
+        // Last cell of the layer
+        n = n + layer->getNumberOfCells() - 1;
+        R1 = layer->permeability / (dx1 * fluidData.vis[n]);
+        R2 = nextLayer->permeability / (dx2 * fluidData.vis[n]);
+        R12 = R1 * R2 / (R1 + R2);
+        alpha = layer->eb * dx1 / dt;
+
+        Aw(n) = -fluidDataLastStep.P[n] * R1;
+        Ae(n) = -2 * fluidDataLastStep.P[n] * R12;
+        Ap(n) = 2 * fluidDataLastStep.P[n] * R12  + fluidDataLastStep.P[n] * R1 + alpha;
+        X(n) = alpha * fluidDataLastStep.P(n) + dx1 * 8.314 * fluidData.T[n] * fluidData.Sm[n];
     }
 
     n = totalCells - 1;
