@@ -354,9 +354,32 @@ void Reactor::updatePressure(double dt)
 
 void Reactor::updateVelocity()
 {
-    for(auto& layer : layers.m_Layers)
+    PorousMedia* firstLayer = layers.m_Layers[0].get();
+    const PorousMedia* secondLayer = layers.m_Layers[0].get();
+
+    int n = 0;
+    double R1 = firstLayer->permeability / (fluidData.vis[n] * firstLayer->getCellWidth());
+    double R2 = 0;
+    double R12 = 0;
+
+    fluidData.u[n] = R1 * (fluidData.P[n] - fluidData.P[n + 1]);
+
+    for (int l = 0; l < layers.m_Layers.size(); ++l)
     {
-        layer->updateVelocity();
+        firstLayer = layers.m_Layers[l].get();
+        firstLayer->updateVelocity();
+     
+        n += firstLayer->getNumberOfCells();
+
+        if (l < layers.m_Layers.size() - 1)
+        {
+            secondLayer = layers.m_Layers[l + 1].get();
+            R1 = firstLayer->permeability / (fluidData.vis[n] * firstLayer->getCellWidth());
+            R2 = secondLayer->permeability / (fluidData.vis[n] * secondLayer->getCellWidth());
+            R12 = R1 * R2 / (R1 + R2);
+
+            fluidData.u[n] = 2 * R12 * (fluidData.P[n] - fluidData.P[n + 1]);
+        }
     }
 }
 

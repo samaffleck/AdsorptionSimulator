@@ -163,10 +163,11 @@ void PorousMedia::updatePressure(double dt, Eigen::VectorXd& Ae, Eigen::VectorXd
 
 void PorousMedia::updateVelocity()
 {
-	for (int n = m_StartIndex; n <= m_EndIndex + 1; ++n)
+	double R = 1;
+	for (int n = m_StartIndex; n < m_EndIndex; ++n)
 	{
-        //reactor.fluidData.u[n] = - (permeability / reactor.fluidData.vis[n]) * (reactor.fluidData.P[n + 1] - reactor.fluidData.P[n]) / dx;
-        reactor->fluidData.u[n - 1] = - (permeability / reactor->fluidData.vis[n]) * (reactor->fluidData.P[n] - reactor->fluidData.P[n - 1]) / dx;
+		R = permeability / (reactor->fluidData.vis[n] * dx);
+        reactor->fluidData.u[n] = R * (reactor->fluidData.P[n] - reactor->fluidData.P[n + 1]);
 	}
 }
 
