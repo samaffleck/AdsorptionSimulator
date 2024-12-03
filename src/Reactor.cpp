@@ -354,9 +354,10 @@ void Reactor::updatePressure(double dt)
 
 void Reactor::updateVelocity()
 {
-    PorousMedia* firstLayer = layers.m_Layers[0].get();
+    const PorousMedia* firstLayer = layers.m_Layers[0].get();
     const PorousMedia* secondLayer = layers.m_Layers[0].get();
 
+    // Update the first cell in the first layer
     int n = 0;
     double R1 = firstLayer->permeability / (fluidData.vis[n] * firstLayer->getCellWidth());
     double R2 = 0;
@@ -364,23 +365,37 @@ void Reactor::updateVelocity()
 
     fluidData.u[n] = R1 * (fluidData.P[n] - fluidData.P[n + 1]);
 
-    for (int l = 0; l < layers.m_Layers.size(); ++l)
+    // Update the interior cells of each layer
+    for (const auto& layer : layers.m_Layers)
+    {
+        layer->updateVelocity();
+    }
+
+    // Update the interior layer interfaces
+    for (int l = 0; l < layers.m_Layers.size() - 1; ++l)
     {
         firstLayer = layers.m_Layers[l].get();
-        firstLayer->updateVelocity();
-     
+        secondLayer = layers.m_Layers[l + 1].get();
+
         n += firstLayer->getNumberOfCells();
 
-        if (l < layers.m_Layers.size() - 1)
-        {
-            secondLayer = layers.m_Layers[l + 1].get();
-            R1 = firstLayer->permeability / (fluidData.vis[n] * firstLayer->getCellWidth());
-            R2 = secondLayer->permeability / (fluidData.vis[n] * secondLayer->getCellWidth());
-            R12 = R1 * R2 / (R1 + R2);
+        R1 = firstLayer->permeability / (fluidData.vis[n] * firstLayer->getCellWidth());
+        R2 = secondLayer->permeability / (fluidData.vis[n] * secondLayer->getCellWidth());
+        R12 = R1 * R2 / (R1 + R2);
 
-            fluidData.u[n] = 2 * R12 * (fluidData.P[n] - fluidData.P[n + 1]);
-        }
+        fluidData.u[n] = 2 * R12 * (fluidData.P[n] - fluidData.P[n + 1]);
     }
+
+    // Update the final layer's last cell
+    firstLayer = layers.m_Layers[layers.m_Layers.size() - 1].get();
+    
+    n += firstLayer->getNumberOfCells();
+    
+    R1 = firstLayer->permeability / (fluidData.vis[n] * firstLayer->getCellWidth());
+    R2 = 0;
+    R12 = 0;
+
+    fluidData.u[n] = R1 * (fluidData.P[n] - fluidData.P[n + 1]);
 }
 
 void Reactor::integrate(double dt)

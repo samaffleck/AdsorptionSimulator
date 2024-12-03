@@ -16,9 +16,11 @@ int main()
     system.getReactor().addLayer("13X");
     
     system.getReactor().getLayer("AA").setLayerLength(0.50);
-    system.getReactor().getLayer("AA").dp = 0.0035;
+    system.getReactor().getLayer("AA").dp = 0.0015;
+    system.getReactor().getLayer("AA").eb = 0.37;
     system.getReactor().getLayer("13X").setLayerLength(0.20);
-    system.getReactor().getLayer("13X").dp = 0.0035;
+    system.getReactor().getLayer("13X").dp = 0.0011;
+    system.getReactor().getLayer("13X").eb = 0.37;
 
     system.getAdsorbent("13X").setIsothermModel("Oxygen", LangmuirIsothermParameters({2, 3, 4}));
     system.getAdsorbent("13X").setIsothermModel("Nitrogen", HenryIsothermParameters({0, 1}));
@@ -38,7 +40,7 @@ int main()
 
     system.getCycle().addStep("Feed");
     system.getCycle().getStep("Feed").inflow.location = BoundaryConditionLocation::BOTTOM;
-    system.getCycle().getStep("Feed").inflow.u_in = 0.05;
+    system.getCycle().getStep("Feed").inflow.u_in = 0.5;
     system.getCycle().getStep("Feed").inflow.T_in = 298;
     system.getCycle().getStep("Feed").inflow.y_in["Oxygen"] = 0.21;
     system.getCycle().getStep("Feed").inflow.y_in["Nitrogen"] = 0.79;
