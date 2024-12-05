@@ -83,6 +83,6 @@ struct FluidDataLogger
     void saveDataToCSV(const std::string& fileDirectory) const;
 
 private:
-    void FluidDataLogger::logVariableToFile(const Eigen::VectorXd& variable, std::ofstream& variableFile) const;
+    void logVariableToFile(const Eigen::VectorXd& variable, std::ofstream& variableFile) const;
 
 };
