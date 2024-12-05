@@ -132,7 +132,7 @@ void PorousMedia::updateMoleFraction(const std::string &component, double dt, Ei
 	double de = 0;
 	double dw = 0;
 	
-	for (int n = m_StartIndex; n <= m_EndIndex; ++n)
+	for (int n = m_StartIndex + 1; n < m_EndIndex; ++n)
 	{
 		de = eb * 0.5 * (reactor->fluidData.Dl[n] + reactor->fluidData.Dl[n + 1]) / dx;
 		dw = eb * 0.5 * (reactor->fluidData.Dl[n] + reactor->fluidData.Dl[n - 1]) / dx;

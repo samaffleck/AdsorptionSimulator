@@ -258,17 +258,64 @@ void Reactor::updateMoleFraction(double dt)
         Ap.setZero();
         X.setZero();
 
+        double alpha = 1;
+        double de = 1;
+        double dw = 1;
+        double dx0 = 1; // Prev layer dx
+        double dx1 = 1; // Curr layer dx
+        double dx2 = 1; // Next layer dx
+
         // Inlet ghost cell
         int n = 0;
         Ap(n) = 1;
         X(n) = fluidData.Ci[component][n];
 
-        // Internal nodes
-        for(auto& layer : layers.m_Layers)
+        // First and last cell of each layer
+        for (int l = 0; l < layers.m_Layers.size(); ++l)
         {
-            layer->updateMoleFraction(component, dt, Ae, Aw, Ap, X);
-        }
+            PorousMedia* layer = layers.m_Layers[l].get();
+            const PorousMedia* nextLayer = layer;
+            const PorousMedia* previousLayer = layer;
+            if (l < layers.m_Layers.size() - 1)
+            {
+                nextLayer = layers.m_Layers[l + 1].get();
+            }
+            if (l > 0)
+            {
+                previousLayer = layers.m_Layers[l - 1].get();
+            }
 
+            dx0 = previousLayer->getCellWidth();
+            dx1 = layer->getCellWidth();
+            dx2 = nextLayer->getCellWidth();
+            
+            // First cell of the layer
+            n = n + 1;
+        	alpha = layer->et * dx1 / dt;
+            de = layer->eb * 0.5 * (fluidData.Dl[n] + fluidData.Dl[n + 1]) / dx1;
+            dw = layer->eb * 2 * (fluidData.Dl[n]) / (dx0 + dx1);
+
+	        Aw[n] = -dw - std::max(fluidData.u[n - 1], 0.0);
+		    Ae[n] = -de - std::max(-fluidData.u[n], 0.0);
+		    Ap[n] = alpha + std::max(fluidData.u[n], 0.0) + std::max(-fluidData.u[n - 1], 0.0) + de + dw;
+		    X[n] = alpha * fluidDataLastStep.Ci[component][n] + layer->density * layer->eb * fluidData.Smi[component][n] * dx1;
+	        
+            // Interior layer nodes
+            layer->updateMoleFraction(component, dt, Ae, Aw, Ap, X);
+        
+            // Last cell of the layer
+            n = n + layer->getNumberOfCells() - 1;
+        	alpha = layer->et * dx1 / dt;
+            de = layer->eb * 2.0 * fluidData.Dl[n] / (dx1 + dx2);
+		    dw = layer->eb * 0.5 * (fluidData.Dl[n] + fluidData.Dl[n - 1]) / dx1;
+
+	        Aw[n] = -dw - std::max(fluidData.u[n - 1], 0.0);
+		    Ae[n] = -de - std::max(-fluidData.u[n], 0.0);
+		    Ap[n] = alpha + std::max(fluidData.u[n], 0.0) + std::max(-fluidData.u[n - 1], 0.0) + de + dw;
+		    X[n] = alpha * fluidDataLastStep.Ci[component][n] + layer->density * layer->eb * fluidData.Smi[component][n] * dx1;
+        }        
+
+        // Outlet ghost cell
         n = totalCells - 1;
         Ap(n) = 1;
         X(n) = fluidData.Ci[component][n];
@@ -296,6 +343,7 @@ void Reactor::updatePressure(double dt)
     double dx1 = 0;
     double dx2 = 0;
 
+    // Inlet ghost cell
     int n = 0;
     Ap(n) = 1;
     X(n) = fluidData.P[n]; 
