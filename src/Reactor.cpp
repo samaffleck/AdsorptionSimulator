@@ -133,8 +133,8 @@ void Reactor::updateBoundaryCells()
     fluidData.C[inIndex] = fluidData.P[inIndex] / (8.314 * fluidData.T[inIndex]);
     for (const auto& component : fluid.components)
     {
-        fluidData.yi[component][inIndex] = 2 * inflow.y_in[component] - fluidData.yi[component][inIndex + di];
-        fluidData.Ci[component][inIndex] = 2 * inflow.y_in[component] * fluidData.P[inIndex + di] / (8.314 * inflow.T_in) - fluidData.Ci[component][inIndex + di];
+        //fluidData.yi[component][inIndex] = 2 * inflow.y_in[component] - fluidData.yi[component][inIndex + di];
+        //fluidData.Ci[component][inIndex] = 2 * inflow.y_in[component] * fluidData.P[inIndex + di] / (8.314 * inflow.T_in) - fluidData.Ci[component][inIndex + di];
     }
     
     // Outflow boundary conditions
@@ -143,8 +143,8 @@ void Reactor::updateBoundaryCells()
     fluidData.P[outIndex] = outflow.P_out;
     for (const auto& component : fluid.components)
     {
-        fluidData.Ci[component][outIndex] = fluidData.Ci[component][outIndex - di];
-        fluidData.yi[component][outIndex] = fluidData.yi[component][outIndex - di];
+        //fluidData.Ci[component][outIndex] = fluidData.Ci[component][outIndex - di];
+        //fluidData.yi[component][outIndex] = fluidData.yi[component][outIndex - di];
     }
 }
 
@@ -219,20 +219,40 @@ void Reactor::updateConstants()
 	fluidData.k.setConstant(0.);
 	fluidData.rho.setConstant(0.);
 	fluidData.vis.setConstant(0.);
-	fluidData.Yt.setConstant(0.);
 
 	for (int n = 0; n < fluidData.C.size(); ++n)
 	{
 		for (const auto& component : fluid.components)
 		{
-			fluidData.yi[component][n] = fluidData.Ci[component][n] / fluidData.C[n];
 			fluidData.Cp[n] += fluidData.yi[component][n] * CoolProp::PropsSI("CPMOLAR", "P", fluidData.P[n], "T", fluidData.T[n], component);
 			fluidData.k[n] += fluidData.yi[component][n] * CoolProp::PropsSI("CONDUCTIVITY", "P", fluidData.P[n], "T", fluidData.T[n], component);
 			fluidData.rho[n] += fluidData.Ci[component][n] * CoolProp::Props1SI("molemass", component) * 1e-3;
 			fluidData.vis[n] += fluidData.yi[component][n] * CoolProp::PropsSI("V", "P", fluidData.P[n], "T", fluidData.T[n], component);
-			fluidData.Yt[n] += fluidData.yi[component][n];
 		}
 	}
+}
+
+void Reactor::updateMoleFraction()
+{
+    fluidData.Yt.setConstant(0.);
+
+    for (int n = 0; n < fluidData.C.size(); ++n)
+    {
+        for (const auto& component : fluid.components)
+        {
+            fluidData.yi[component][n] = fluidData.Ci[component][n] / fluidData.C[n];
+            fluidData.Yt[n] += fluidData.yi[component][n];
+        }
+    }
+
+}
+
+void Reactor::updateMolarConcentration()
+{
+    for (int n = 0; n < fluidData.C.size(); ++n)
+    {
+        fluidData.C[n] = fluidData.P[n] / (8.314 * fluidData.T[n]);
+    }
 }
 
 void Reactor::updateFlowrates()
@@ -247,7 +267,7 @@ void Reactor::updateFlowrates()
 	}
 }
 
-void Reactor::updateMoleFraction(double dt)
+void Reactor::updateComponentMolarConcentration(double dt)
 {
     int totalCells = Ap.size();
 
@@ -267,9 +287,11 @@ void Reactor::updateMoleFraction(double dt)
 
         // Inlet ghost cell
         int n = 0;
+        Aw(n) = 0;
+        Ae(n) = 1;
         Ap(n) = 1;
-        X(n) = fluidData.Ci[component][n];
-
+        X(n) = 2 * inflow.y_in[component] * fluidData.P[n] / (8.314 * inflow.T_in);
+        
         // First and last cell of each layer
         for (int l = 0; l < layers.m_Layers.size(); ++l)
         {
@@ -284,7 +306,7 @@ void Reactor::updateMoleFraction(double dt)
             {
                 previousLayer = layers.m_Layers[l - 1].get();
             }
-
+            
             dx0 = previousLayer->getCellWidth();
             dx1 = layer->getCellWidth();
             dx2 = nextLayer->getCellWidth();
@@ -293,8 +315,9 @@ void Reactor::updateMoleFraction(double dt)
             n = n + 1;
         	alpha = layer->et * dx1 / dt;
             de = layer->eb * 0.5 * (fluidData.Dl[n] + fluidData.Dl[n + 1]) / dx1;
-            dw = layer->eb * 2 * (fluidData.Dl[n]) / (dx0 + dx1);
-
+            //dw = layer->eb * 2 * (fluidData.Dl[n]) / (dx0 + dx1);
+            dw = 0;
+            
 	        Aw[n] = -dw - std::max(fluidData.u[n - 1], 0.0);
 		    Ae[n] = -de - std::max(-fluidData.u[n], 0.0);
 		    Ap[n] = alpha + std::max(fluidData.u[n], 0.0) + std::max(-fluidData.u[n - 1], 0.0) + de + dw;
@@ -306,9 +329,10 @@ void Reactor::updateMoleFraction(double dt)
             // Last cell of the layer
             n = n + layer->getNumberOfCells() - 1;
         	alpha = layer->et * dx1 / dt;
-            de = layer->eb * 2.0 * fluidData.Dl[n] / (dx1 + dx2);
+            //de = layer->eb * 2.0 * fluidData.Dl[n] / (dx1 + dx2);
+            de = 0;
 		    dw = layer->eb * 0.5 * (fluidData.Dl[n] + fluidData.Dl[n - 1]) / dx1;
-
+            
 	        Aw[n] = -dw - std::max(fluidData.u[n - 1], 0.0);
 		    Ae[n] = -de - std::max(-fluidData.u[n], 0.0);
 		    Ap[n] = alpha + std::max(fluidData.u[n], 0.0) + std::max(-fluidData.u[n - 1], 0.0) + de + dw;
@@ -317,8 +341,10 @@ void Reactor::updateMoleFraction(double dt)
 
         // Outlet ghost cell
         n = totalCells - 1;
+        Aw(n) = -1;
+        Ae(n) = 0;
         Ap(n) = 1;
-        X(n) = fluidData.Ci[component][n];
+        X(n) = 0;
 
 		LinearSolver::TDMA(Ap, Ae, Aw, X, fluidData.Ci[component]);
 	}
@@ -448,21 +474,27 @@ void Reactor::updateVelocity()
 
 void Reactor::integrate(double dt)
 {
-    // Apply boundary conditions
-    updateBoundaryCells(); 
+    
+    for (int itt = 0; itt < 20; ++itt)
+    {
+        // Apply boundary conditions
+        updateBoundaryCells();
 
-	// Explicit equations
-	//updateConstants();
-	updateFlowrates();
-	//updateIsotherms();
-	//updateSourceTerms();
-    dispersionModel->update(fluidData);
+        // Explicit equations
+        //updateConstants();
+        updateFlowrates();
+        updateMolarConcentration();
+        updateMoleFraction();
+        //updateIsotherms();
+        //updateSourceTerms();
+        dispersionModel->update(fluidData);
 
-	// Implicit equations
-	updateMoleFraction(dt);
-	updatePressure(dt);
-	updateVelocity();
-
+        // Implicit equations
+        updateComponentMolarConcentration(dt);
+        updatePressure(dt);
+        updateVelocity();
+    }
+    
 	fluidDataLastStep = fluidData;
 }
 

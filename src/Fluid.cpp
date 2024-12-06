@@ -49,21 +49,43 @@ void FluidDataLogger::saveDataToCSV(const std::string& fileDirectory) const
 {
 	std::filesystem::create_directory(fileDirectory);
 
+	auto NC = int(timeSeriesData[0].Ci.size()); // Number of componenets
+
 	// Create all of the files
 	std::ofstream pressureFile;
 	std::ofstream velocityFile;
+	std::vector<std::ofstream> moleFractionFiles(NC);
 
 	pressureFile.open(fileDirectory + "/pressure.csv");
 	velocityFile.open(fileDirectory + "/velocity.csv");
+
+	int i = 0;
+	for (const auto& [componentName, data] : timeSeriesData[0].Ci)
+	{
+		moleFractionFiles[i].open(fileDirectory + "/" + componentName + "_mole_fraction.csv");
+		i++;
+	}
 
 	for (const auto& data : timeSeriesData)
 	{
 		logVariableToFile(data.P, pressureFile);
 		logVariableToFile(data.u, velocityFile);
+		
+		i = 0;
+		for (const auto& [componentName, componentData] : data.yi)
+		{
+			logVariableToFile(componentData, moleFractionFiles[i]);
+			i++;
+		}
 	}
 
 	pressureFile.close();
 	velocityFile.close();
+
+	for (i = 0; i < NC; ++i)
+	{
+		moleFractionFiles[i].close();
+	}
 }
 
 void FluidDataLogger::logVariableToFile(const Eigen::VectorXd& var, std::ofstream& variableFile) const

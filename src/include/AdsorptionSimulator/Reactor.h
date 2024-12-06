@@ -84,7 +84,9 @@ private:
 	void updateConstants();
 	void updateFlowrates();
 	void updateSourceTerms();
-	void updateMoleFraction(double dt);
+	void updateComponentMolarConcentration(double dt);
+	void updateMoleFraction();
+	void updateMolarConcentration();
 	void updatePressure(double dt);
 	void updateVelocity();
 
