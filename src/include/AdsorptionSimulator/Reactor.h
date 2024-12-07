@@ -84,7 +84,11 @@ private:
 	void updateConstants();
 	void updateFlowrates();
 	void updateSourceTerms();
+	
+	void setComponentMolarConcentration(const std::string& component, double dt);
 	void updateComponentMolarConcentration(double dt);
+	void getComponentMolarConcentrationError(double dt);
+
 	void updateMoleFraction();
 	void updateMolarConcentration();
 	void updatePressure(double dt);

@@ -26,4 +26,22 @@ namespace LinearSolver
 			V[i] = dPrime[i] - cPrime[i] * V[i + 1];
 		}
 	}
+
+	double getError(const Eigen::VectorXd& Ap, const Eigen::VectorXd& Ae, const Eigen::VectorXd& Aw, const Eigen::VectorXd& S, Eigen::VectorXd& V)
+	{
+		const auto N = (int)V.size();
+		Eigen::VectorXd residual;
+		residual.setConstant(N, 0);
+
+		residual(0) = Ap(0) * V(0) + Ae(0) * V(1) - S(0);
+
+		for (size_t n = 1; n < N - 1; ++n)
+		{
+			residual(n) = Aw(n) * V(n - 1) + Ap(n) * V(n) + Ae(n) * V(n + 1) - S(n);
+		}
+
+		residual(N - 1) = Aw(N - 1) * V(N - 2) + Ap(N - 1) * V(N - 1) - S(N - 1);
+
+		return residual.norm();
+	}
 }

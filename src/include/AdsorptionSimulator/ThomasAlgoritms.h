@@ -7,9 +7,10 @@
 namespace LinearSolver
 {
 	void TDMA(const Eigen::VectorXd& Ap, const Eigen::VectorXd& Ae, const Eigen::VectorXd& Aw, const Eigen::VectorXd& S, Eigen::VectorXd& V);
+	double getError(const Eigen::VectorXd& Ap, const Eigen::VectorXd& Ae, const Eigen::VectorXd& Aw, const Eigen::VectorXd& S, Eigen::VectorXd& V);
 }
 
-
+/*
 class ThomasAlgorithm {
 
 public:
@@ -29,3 +30,4 @@ public:
 	static double calculateError(const Eigen::VectorXd& Ap, const Eigen::VectorXd& Ae, const Eigen::VectorXd& Aw, const Eigen::VectorXd& Sp, const Eigen::VectorXd& V);
 
 };
+*/
